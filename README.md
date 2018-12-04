@@ -13,3 +13,12 @@
 ```sql
 update wp_options set option_value='http://localhost:8101'  where option_name='siteurl';
 ```
+
+## nginx转发设置
+
+如果是主机转发到docker的端口，那么主机的转发设置要把host固定住。
+
+nginx的设置：
+```
+proxy_set_header Host $host;
+```
