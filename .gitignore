@@ -1,4 +1,4 @@
 .DS_Store
-!data/config/*
+!data/config/
 !data/start-service.sh
 data/*
