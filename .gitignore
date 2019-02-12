@@ -1,4 +1,5 @@
 .DS_Store
-!data/config/
-!data/start-service.sh
-data/*
+data/wordpress/
+data/mysql-data/
+data/mysql-data.tar
+data/wordpress.tar
