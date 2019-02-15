@@ -2,7 +2,7 @@ FROM ubuntu:18.04
 ENV DEBIAN_FRONTEND noninteractive
 COPY ./sources.list /etc/apt/
 COPY ./pip.conf /root/.pip/
-RUN apt-get update && apt-get install -y locales nginx php7.2 php7.2-fpm php7.2-mysql mysql-server && \
+RUN apt-get update && apt-get install -y vim locales nginx php7.2 php7.2-fpm php7.2-mysql mysql-server && \
 ln -s /opt/config/nginx/lyc-blog /etc/nginx/sites-enabled/lyc-blog && \
 sed -i "s/^datadir.\+/datadir        = \/opt\/mysql-data/g" /etc/mysql/mysql.conf.d/mysqld.cnf && \
 echo 'LANG=en_US.UTF-8' >> /etc/default/locale && \
