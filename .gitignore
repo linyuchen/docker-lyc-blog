@@ -1,5 +1,2 @@
 .DS_Store
-data/wordpress/
-data/mysql-data/
-data/mysql-data.tar
-data/wordpress.tar
+mysql-data/
