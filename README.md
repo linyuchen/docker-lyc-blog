@@ -1,6 +1,12 @@
 # docker构建并启动
 
-docker-compose -f stack.yml up -d
+docker-compose up -d
+
+# 配置nginx转发到docker
+
+复制`nginx`文件夹中的所有文件到`/etc/nginx/sites-enabled/`
+
+重新加载nginx配置: `nginx -s reload`
 
 ## 修改站点url
 ```sql
