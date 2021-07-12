@@ -96,14 +96,14 @@ class BP_Nouveau extends BP_Theme_Compat {
 		} else {
 			add_action( 'admin_init', function() {
 				if ( defined( 'DOING_AJAX' ) && true === DOING_AJAX ) {
-					require $this->includes_dir . 'ajax.php';
+					require bp_nouveau()->includes_dir . 'ajax.php';
 				}
 			}, 0 );
 		}
 
 		add_action( 'bp_customize_register', function() {
 			if ( bp_is_root_blog() && current_user_can( 'customize' ) ) {
-				require $this->includes_dir . 'customizer.php';
+				require bp_nouveau()->includes_dir . 'customizer.php';
 			}
 		}, 0 );
 
@@ -146,7 +146,7 @@ class BP_Nouveau extends BP_Theme_Compat {
 		bp_set_theme_compat_feature( $this->id, array(
 			'name'     => 'cover_image',
 			'settings' => array(
-				'components'   => array( 'xprofile', 'groups' ),
+				'components'   => array( 'members', 'groups' ),
 				'width'        => $width,
 				'height'       => $top_offset + round( $avatar_height / 2 ),
 				'callback'     => 'bp_nouveau_theme_cover_image',
@@ -170,30 +170,33 @@ class BP_Nouveau extends BP_Theme_Compat {
 		// We need to neutralize the BuddyPress core "bp_core_render_message()" once it has been added.
 		add_action( 'bp_actions', array( $this, 'neutralize_core_template_notices' ), 6 );
 
-		// Scripts
-		add_action( 'bp_enqueue_scripts', array( $this, 'register_scripts' ), 2 ); // Register theme JS
+		// Scripts.
+		add_action( 'bp_enqueue_scripts', array( $this, 'register_scripts' ), 2 ); // Register theme JS.
 		remove_action( 'bp_enqueue_scripts', 'bp_core_confirmation_js' );
-		add_action( 'bp_enqueue_scripts', array( $this, 'enqueue_styles' ) ); // Enqueue theme CSS
-		add_action( 'bp_enqueue_scripts', array( $this, 'enqueue_scripts' ) ); // Enqueue theme JS
-		add_filter( 'bp_enqueue_scripts', array( $this, 'localize_scripts' ) ); // Enqueue theme script localization
+		add_action( 'bp_enqueue_scripts', array( $this, 'enqueue_styles' ) ); // Enqueue theme CSS.
+		add_action( 'bp_enqueue_scripts', array( $this, 'enqueue_scripts' ) ); // Enqueue theme JS.
+		add_filter( 'bp_enqueue_scripts', array( $this, 'localize_scripts' ) ); // Enqueue theme script localization.
 
-		// Body no-js class
+		// Body no-js class.
 		add_filter( 'body_class', array( $this, 'add_nojs_body_class' ), 20, 1 );
 
-		// Ajax querystring
+		// Ajax querystring.
 		add_filter( 'bp_ajax_querystring', 'bp_nouveau_ajax_querystring', 10, 2 );
 
-		// Register directory nav items
+		// Register directory nav items.
 		add_action( 'bp_screens', array( $this, 'setup_directory_nav' ), 15 );
 
-		// Register the Default front pages Dynamic Sidebars
+		// Register the Default front pages Dynamic Sidebars.
 		add_action( 'widgets_init', 'bp_nouveau_register_sidebars', 11 );
 
-		// Register the Primary Object nav widget
+		// Register the Primary Object nav widget.
 		add_action( 'bp_widgets_init', array( 'BP_Nouveau_Object_Nav_Widget', 'register_widget' ) );
 
-		// Set the BP Uri for the Ajax customizer preview
+		// Set the BP Uri for the Ajax customizer preview.
 		add_filter( 'bp_uri', array( $this, 'customizer_set_uri' ), 10, 1 );
+
+		// Modify "registration disabled" and welcome message if invitations are enabled.
+		add_action( 'bp_nouveau_feedback_messages', array( $this, 'filter_registration_messages' ), 99 );
 
 		/** Override **********************************************************/
 
@@ -266,16 +269,47 @@ class BP_Nouveau extends BP_Theme_Compat {
 					$file = $asset['uri'];
 				}
 
-				$data = wp_parse_args( $style, array(
-					'dependencies' => array(),
-					'version'      => $this->version,
-					'type'         => 'screen',
-				) );
+				$data = bp_parse_args(
+					$style,
+					array(
+						'dependencies' => array(),
+						'version'      => $this->version,
+						'type'         => 'screen',
+					),
+					'nouveau_enqueue_styles'
+				);
 
 				wp_enqueue_style( $handle, $file, $data['dependencies'], $data['version'], $data['type'] );
 
 				if ( $min ) {
 					wp_style_add_data( $handle, 'suffix', $min );
+				}
+			}
+		}
+
+		// Compatibility stylesheets for specific themes.
+		$theme                = get_template();
+		$companion_stylesheet = bp_locate_template_asset( sprintf( 'css/%1$s%2$s.css', $theme, $min ) );
+		$companion_handle     = 'bp-' . $theme;
+
+		if ( ! is_rtl() && isset( $companion_stylesheet['uri'] ) && $companion_stylesheet['uri'] ) {
+			wp_enqueue_style( $companion_handle, $companion_stylesheet['uri'], array(), $this->version, 'screen' );
+
+			if ( $min ) {
+				wp_style_add_data( $companion_handle, 'suffix', $min );
+			}
+		}
+
+		// Compatibility stylesheet for specific themes, RTL-version.
+		if ( is_rtl() ) {
+			$rtl_companion_stylesheet = bp_locate_template_asset( sprintf( 'css/%1$s-rtl%2$s.css', $theme, $min ) );
+
+			if ( isset( $rtl_companion_stylesheet['uri'] ) ) {
+				$companion_handle .= '-rtl';
+				wp_enqueue_style( $companion_handle, $rtl_companion_stylesheet['uri'], array(), $this->version, 'screen' );
+
+				if ( $min ) {
+					wp_style_add_data( $companion_handle, 'suffix', $min );
 				}
 			}
 		}
@@ -313,13 +347,20 @@ class BP_Nouveau extends BP_Theme_Compat {
 			),
 		) );
 
-		// Bail if no scripts
+		// Bail if no scripts.
 		if ( empty( $scripts ) ) {
 			return;
 		}
 
 		// Add The password verify if needed.
 		if ( bp_is_active( 'settings' ) || bp_get_signup_allowed() ) {
+			/**
+			 * BP Nouveau is now directly using the `wp-admin/js/user-profile.js` script.
+			 *
+			 * Setting the user password is now more consistent with how WordPress handles it.
+			 *
+			 * @deprecated 5.0.0
+			 */
 			$scripts['bp-nouveau-password-verify'] = array(
 				'file'         => 'js/password-verify%s.js',
 				'dependencies' => array( 'bp-nouveau', 'password-strength-meter' ),
@@ -345,11 +386,15 @@ class BP_Nouveau extends BP_Theme_Compat {
 				$file = $asset['uri'];
 			}
 
-			$data = wp_parse_args( $script, array(
-				'dependencies' => array(),
-				'version'      => $this->version,
-				'footer'       => false,
-			) );
+			$data = bp_parse_args(
+				$script,
+				array(
+					'dependencies' => array(),
+					'version'      => $this->version,
+					'footer'       => false,
+				),
+				'nouveau_register_scripts'
+			);
 
 			wp_register_script( $handle, $file, $data['dependencies'], $data['version'], $data['footer'] );
 		}
@@ -364,7 +409,7 @@ class BP_Nouveau extends BP_Theme_Compat {
 		wp_enqueue_script( 'bp-nouveau' );
 
 		if ( bp_is_register_page() || bp_is_user_settings_general() ) {
-			wp_enqueue_script( 'bp-nouveau-password-verify' );
+			wp_enqueue_script( 'user-profile' );
 		}
 
 		if ( is_singular() && bp_is_blog_page() && get_option( 'thread_comments' ) ) {
@@ -409,22 +454,15 @@ class BP_Nouveau extends BP_Theme_Compat {
 	public function localize_scripts() {
 		$params = array(
 			'ajaxurl'             => bp_core_ajax_url(),
-			'accepted'            => __( 'Accepted', 'buddypress' ),
-			'close'               => __( 'Close', 'buddypress' ),
-			'comments'            => __( 'comments', 'buddypress' ),
-			'leave_group_confirm' => __( 'Are you sure you want to leave this group?', 'buddypress' ),
 			'confirm'             => __( 'Are you sure?', 'buddypress' ),
-			'my_favs'             => __( 'My Favorites', 'buddypress' ),
-			'rejected'            => __( 'Rejected', 'buddypress' ),
-			'show_all'            => __( 'Show all', 'buddypress' ),
-			'show_all_comments'   => __( 'Show all comments for this thread', 'buddypress' ),
+
+			/* translators: %s: number of activity comments */
 			'show_x_comments'     => __( 'Show all %d comments', 'buddypress' ),
 			'unsaved_changes'     => __( 'Your profile has unsaved changes. If you leave the page, the changes will be lost.', 'buddypress' ),
-			'view'                => __( 'View', 'buddypress' ),
 			'object_nav_parent'   => '#buddypress',
 		);
 
-		// If the Object/Item nav are in the sidebar
+		// If the Object/Item nav are in the sidebar.
 		if ( bp_nouveau_is_object_nav_in_sidebar() ) {
 			$params['object_nav_parent'] = '.buddypress_object_nav';
 		}
@@ -445,18 +483,19 @@ class BP_Nouveau extends BP_Theme_Compat {
 				continue;
 			}
 
-			if ( 'groups' === $object ) {
-				$supported_objects = array_merge( $supported_objects, array( 'group_members', 'group_requests' ) );
-			}
-
 			$object_nonces[ $object ] = wp_create_nonce( 'bp_nouveau_' . $object );
 		}
 
-		// Add components & nonces
+		// Groups require some additional objects.
+		if ( bp_is_active( 'groups' ) ) {
+			$supported_objects = array_merge( $supported_objects, array( 'group_members', 'group_requests' ) );
+		}
+
+		// Add components & nonces.
 		$params['objects'] = $supported_objects;
 		$params['nonces']  = $object_nonces;
 
-		// Used to transport the settings inside the Ajax requests
+		// Used to transport the settings inside the Ajax requests.
 		if ( is_customize_preview() ) {
 			$params['customizer_settings'] = bp_nouveau_get_temporary_setting( 'any' );
 		}
@@ -595,7 +634,7 @@ class BP_Nouveau extends BP_Theme_Compat {
 				continue;
 			}
 
-			// Define the primary nav for the current component's directory
+			// Define the primary nav for the current component's directory.
 			$this->directory_nav->add_nav( $nav_item );
 		}
 	}
@@ -627,7 +666,11 @@ class BP_Nouveau extends BP_Theme_Compat {
 		if ( false === strpos( $uri['path'], 'customize.php' ) ) {
 			return $path;
 		} else {
-			$vars = wp_parse_args( $uri['query'], array() );
+			$vars = bp_parse_args(
+				$uri['query'],
+				array(),
+				'customizer_set_uri'
+			);
 
 			if ( ! empty( $vars['url'] ) ) {
 				$path = str_replace( get_site_url(), '', urldecode( $vars['url'] ) );
@@ -635,6 +678,31 @@ class BP_Nouveau extends BP_Theme_Compat {
 		}
 
 		return $path;
+	}
+	/**
+	 * Modify "registration disabled" message in Nouveau template pack.
+	 * Modify welcome message in Nouveau template pack.
+	 *
+	 * @since 8.0.0
+	 *
+	 * @param array $messages The list of feedback messages.
+	 *
+	 * @return array $messages
+	 */
+	function filter_registration_messages( $messages ) {
+		// Change the "registration is disabled" message.
+		$disallowed_message = bp_members_invitations_get_modified_registration_disabled_message();
+		if ( $disallowed_message ) {
+			$messages['registration-disabled']['message'] = $disallowed_message;
+		}
+
+		// Add information about invitations to the welcome block.
+		$welcome_message = bp_members_invitations_get_registration_welcome_message();
+		if ( $welcome_message ) {
+			$messages['request-details']['message'] = $welcome_message . ' ' . $messages['request-details']['message'];
+		}
+
+		return $messages;
 	}
 }
 

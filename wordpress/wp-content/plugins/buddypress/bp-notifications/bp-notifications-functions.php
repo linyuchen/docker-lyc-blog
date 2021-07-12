@@ -233,8 +233,8 @@ function bp_notifications_get_notifications_for_user( $user_id, $format = 'strin
 					$notification_object->content = $content;
 					$notification_object->href    = bp_loggedin_user_domain();
 				} else {
-					$notification_object->content = $content['text'];
-					$notification_object->href    = $content['link'];
+					$notification_object->content = isset( $content['text'] ) ? $content['text'] : '';
+					$notification_object->href    = isset( $content['link'] ) ? $content['link'] : '';
 				}
 
 				$renderable[] = $notification_object;
@@ -445,7 +445,23 @@ function bp_notifications_delete_notifications_on_user_delete( $user_id ) {
 	) );
 }
 add_action( 'wpmu_delete_user', 'bp_notifications_delete_notifications_on_user_delete' );
-add_action( 'delete_user', 'bp_notifications_delete_notifications_on_user_delete' );
+
+/**
+ * Deletes user notifications data on the 'delete_user' hook.
+ *
+ * @since 6.0.0
+ *
+ * @param int $user_id The ID of the deleted user.
+ */
+function bp_notifications_delete_notifications_on_delete_user( $user_id ) {
+	if ( ! bp_remove_user_data_on_delete_user_hook( 'notifications', $user_id ) ) {
+		return;
+	}
+
+	bp_notifications_delete_notifications_on_user_delete( $user_id );
+}
+
+add_action( 'delete_user', 'bp_notifications_delete_notifications_on_delete_user' );
 
 /** Mark **********************************************************************/
 
@@ -793,4 +809,103 @@ function bp_notifications_add_meta( $notification_id, $meta_key, $meta_value, $u
 	remove_filter( 'query', 'bp_filter_metaid_column_name' );
 
 	return $retval;
+}
+
+/**
+ * Finds and exports personal data associated with an email address from the Notifications tables.
+ *
+ * @since 4.0.0
+ *
+ * @param string $email_address  The users email address.
+ * @param int    $page           Batch number.
+ * @return array An array of personal data.
+ */
+function bp_notifications_personal_data_exporter( $email_address, $page ) {
+	$number = 50;
+
+	$email_address = trim( $email_address );
+
+	$data_to_export = array();
+
+	$user = get_user_by( 'email', $email_address );
+
+	if ( ! $user ) {
+		return array(
+			'data' => array(),
+			'done' => true,
+		);
+	}
+
+	$notifications = BP_Notifications_Notification::get( array(
+		'is_new'   => null,
+		'per_page' => $number,
+		'page'     => $page,
+		'user_id'  => $user->ID,
+		'order'    => 'DESC',
+	) );
+
+	$user_data_to_export = array();
+
+	foreach ( $notifications as $notification ) {
+		if ( 'xprofile' === $notification->component_name ) {
+			$component_name = 'profile';
+		} else {
+			$component_name = $notification->component_name;
+		}
+
+		// Format notifications.
+		if ( isset( buddypress()->{$component_name}->notification_callback ) && is_callable( buddypress()->{$component_name}->notification_callback ) ) {
+			$content = call_user_func( buddypress()->{$component_name}->notification_callback, $notification->component_action, $notification->item_id, $notification->secondary_item_id, 1, 'string', $notification->id );
+		} else {
+			/*
+			 * Compile an array of data to send to filter.
+			 *
+			 * Note that a null value is passed in the slot filled by `total_count` in
+			 * other filter contexts. We don't have enough info here to pass a `total_count`.
+			 */
+			$ref_array = array(
+				$notification->component_action,
+				$notification->item_id,
+				$notification->secondary_item_id,
+				null,
+				'string',
+				$notification->component_action,
+				$component_name,
+				$notification->id,
+			);
+
+			/** This filter is documented in bp-notifications/bp-notifications-functions.php */
+			$content = apply_filters_ref_array( 'bp_notifications_get_notifications_for_user', $ref_array );
+		}
+
+		$item_data = array(
+			array(
+				'name'  => __( 'Notification Content', 'buddypress' ),
+				'value' => $content,
+			),
+			array(
+				'name'  => __( 'Notification Date', 'buddypress' ),
+				'value' => $notification->date_notified,
+			),
+			array(
+				'name'  => __( 'Status', 'buddypress' ),
+				'value' => $notification->is_new ? __( 'Unread', 'buddypress' ) : __( 'Read', 'buddypress' ),
+			),
+		);
+
+		$data_to_export[] = array(
+			'group_id'    => 'bp_notifications',
+			'group_label' => __( 'Notifications', 'buddypress' ),
+			'item_id'     => "bp-notifications-{$notification->id}",
+			'data'        => $item_data,
+		);
+	}
+
+	// Tell core if we have more items to process.
+	$done = count( $notifications ) < $number;
+
+	return array(
+		'data' => $data_to_export,
+		'done' => $done,
+	);
 }

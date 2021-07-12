@@ -1,9 +1,10 @@
-/* global wp, bp, BP_Nouveau, _, Backbone */
-/* @version 3.0.0 */
+/* global wp, BP_Nouveau, _, Backbone */
+/* @since 3.0.0 */
+/* @version 8.0.0 */
 window.wp = window.wp || {};
 window.bp = window.bp || {};
 
-( function( exports, $ ) {
+( function( bp, $ ) {
 
 	// Bail if not set
 	if ( typeof BP_Nouveau === 'undefined' ) {
@@ -360,6 +361,8 @@ window.bp = window.bp || {};
 		initialize: function() {
 			this.collection.on( 'add', this.outputNav, this );
 			this.collection.on( 'change:hide', this.showHideNavItem, this );
+
+			window.onbeforeunload = _.bind( this.confirmQuit, this );
 		},
 
 		outputNav: function( nav ) {
@@ -424,6 +427,14 @@ window.bp = window.bp || {};
 					nav.set( 'active', 0 );
 				}
 			}, this );
+		},
+
+		confirmQuit: function() {
+			if ( bp.Nouveau.GroupInvites.invites && bp.Nouveau.GroupInvites.invites.length ) {
+				$( '[data-nav="invites"]' ).focus();
+
+				return false;
+			}
 		}
 	} );
 
@@ -834,4 +845,4 @@ window.bp = window.bp || {};
 	// Launch BP Nouveau Groups
 	bp.Nouveau.GroupInvites.start();
 
-} )( bp, jQuery );
+} )( window.bp, jQuery );

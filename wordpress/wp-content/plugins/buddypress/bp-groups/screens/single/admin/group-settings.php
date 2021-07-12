@@ -26,12 +26,12 @@ function groups_screen_group_admin_settings() {
 	if ( isset( $_POST['save'] ) ) {
 		$enable_forum   = ( isset($_POST['group-show-forum'] ) ) ? 1 : 0;
 
-		// Checked against a whitelist for security.
+		// Checked against a list of allowed statuses for security.
 		/** This filter is documented in bp-groups/bp-groups-admin.php */
 		$allowed_status = apply_filters( 'groups_allowed_status', array( 'public', 'private', 'hidden' ) );
 		$status         = ( in_array( $_POST['group-status'], (array) $allowed_status ) ) ? $_POST['group-status'] : 'public';
 
-		// Checked against a whitelist for security.
+		// Checked against a list of allowed statuses for security.
 		/** This filter is documented in bp-groups/bp-groups-admin.php */
 		$allowed_invite_status = apply_filters( 'groups_allowed_invite_status', array( 'members', 'mods', 'admins' ) );
 		$invite_status	       = isset( $_POST['group-invite-status'] ) && in_array( $_POST['group-invite-status'], (array) $allowed_invite_status ) ? $_POST['group-invite-status'] : 'members';
@@ -40,18 +40,20 @@ function groups_screen_group_admin_settings() {
 		if ( !check_admin_referer( 'groups_edit_group_settings' ) )
 			return false;
 
+		$group_id = bp_get_current_group_id();
+
 		/*
 		 * Save group types.
 		 *
 		 * Ensure we keep types that have 'show_in_create_screen' set to false.
 		 */
-		$current_types = bp_groups_get_group_type( bp_get_current_group_id(), false );
+		$current_types = bp_groups_get_group_type( $group_id, false );
 		$current_types = array_intersect( bp_groups_get_group_types( array( 'show_in_create_screen' => false ) ), (array) $current_types );
 		if ( isset( $_POST['group-types'] ) ) {
 			$current_types = array_merge( $current_types, $_POST['group-types'] );
 
 			// Set group types.
-			bp_groups_set_group_type( bp_get_current_group_id(), $current_types );
+			bp_groups_set_group_type( $group_id, $current_types );
 
 		// No group types checked, so this means we want to wipe out all group types.
 		} else {
@@ -63,10 +65,10 @@ function groups_screen_group_admin_settings() {
 			$current_types = empty( $current_types ) ? '' : $current_types;
 
 			// Set group types.
-			bp_groups_set_group_type( bp_get_current_group_id(), $current_types );
+			bp_groups_set_group_type( $group_id, $current_types );
 		}
 
-		if ( !groups_edit_group_settings( $_POST['group-id'], $enable_forum, $status, $invite_status ) ) {
+		if ( ! groups_edit_group_settings( $group_id, $enable_forum, $status, $invite_status ) ) {
 			bp_core_add_message( __( 'There was an error updating group settings. Please try again.', 'buddypress' ), 'error' );
 		} else {
 			bp_core_add_message( __( 'Group settings were successfully updated.', 'buddypress' ) );

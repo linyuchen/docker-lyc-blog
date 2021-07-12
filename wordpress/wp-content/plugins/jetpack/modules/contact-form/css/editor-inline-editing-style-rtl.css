@@ -44,7 +44,7 @@ body {
 
 body {
 	margin: 0;
-	background: #f5f5f5;
+	background: #f6f7f7;
 }
 
 .card:after {
@@ -122,7 +122,6 @@ input[type="email"],
 input[type="url"] {
 	border-radius: 0;
 	-webkit-appearance: none;
-	   -moz-appearance: none;
 	        appearance: none;
 	box-sizing: border-box;
 	margin: 0;
@@ -137,10 +136,7 @@ input[type="url"] {
 	box-shadow: none;
 }
 
-input[type="text"]:-ms-input-placeholder,
-input[type="tel"]:-ms-input-placeholder,
-input[type="email"]:-ms-input-placeholder,
-input[type="url"]:-ms-input-placeholder {
+input[type="text"]:-ms-input-placeholder, input[type="tel"]:-ms-input-placeholder, input[type="email"]:-ms-input-placeholder, input[type="url"]:-ms-input-placeholder {
 	color: #87a6bc;
 }
 
@@ -191,10 +187,7 @@ input[type="url"]:disabled:hover {
 	cursor: default;
 }
 
-input[type="text"]:disabled:-ms-input-placeholder,
-input[type="tel"]:disabled:-ms-input-placeholder,
-input[type="email"]:disabled:-ms-input-placeholder,
-input[type="url"]:disabled:-ms-input-placeholder {
+input[type="text"]:disabled:-ms-input-placeholder, input[type="tel"]:disabled:-ms-input-placeholder, input[type="email"]:disabled:-ms-input-placeholder, input[type="url"]:disabled:-ms-input-placeholder {
 	color: #a8bece;
 }
 
@@ -213,7 +206,6 @@ input[type="url"]:disabled::placeholder {
 textarea {
 	border-radius: 0;
 	-webkit-appearance: none;
-	   -moz-appearance: none;
 	        appearance: none;
 	box-sizing: border-box;
 	margin: 0;
@@ -295,8 +287,7 @@ input[type="checkbox"] {
 	line-height: 0;
 	text-align: center;
 	vertical-align: middle;
-	-moz-appearance: none;
-	     appearance: none;
+	appearance: none;
 	transition: all .15s ease-in-out;
 	clear: none;
 	cursor: pointer;
@@ -383,8 +374,7 @@ input[type=radio] {
 	vertical-align: middle;
 	width: 16px;
 	min-width: 16px;
-	-moz-appearance: none;
-	     appearance: none;
+	appearance: none;
 	border-radius: 50%;
 	line-height: 10px;
 }
@@ -435,8 +425,7 @@ input[type="radio"]:disabled:hover {
 	cursor: default;
 }
 
-.radio-button:disabled:-ms-input-placeholder,
-input[type="radio"]:disabled:-ms-input-placeholder {
+.radio-button:disabled:-ms-input-placeholder, input[type="radio"]:disabled:-ms-input-placeholder {
 	color: #a8bece;
 }
 
@@ -510,11 +499,10 @@ select {
 	vertical-align: top;
 	white-space: nowrap;
 	box-sizing: border-box;
-	padding: 7px 14px 9px 32px; // Aligns the text to the 8px baseline grid and adds padding on right to allow for the arrow.
+	/* Aligns the text to the 8px baseline grid and adds padding on right to allow for the arrow. */
+	padding: 7px 14px 9px 32px;
 	-webkit-appearance: none;
-	-moz-appearance: none;
-	-webkit-appearance: none;
-	        appearance: none;
+	appearance: none;
 }
 
 select:hover {
@@ -582,7 +570,6 @@ input[type="submit"] {
 	padding: 0;
 	font-size: 14px;
 	-webkit-appearance: none;
-	-moz-appearance: none;
 	appearance: none;
 	vertical-align: baseline;
 	background: white;
@@ -605,7 +592,6 @@ input[type="submit"] {
 	border-radius: 4px;
 	padding: 7px 14px 9px;
 	-webkit-appearance: none;
-	-moz-appearance: none;
 	appearance: none;
 }
 
@@ -700,17 +686,13 @@ input[type="submit"].button-primary {
 }
 
 .grunion-type-options {
-	display: -ms-flexbox;
 	display: flex;
-	-ms-flex-wrap: wrap;
-	    flex-wrap: wrap;
+	flex-wrap: wrap;
 }
 
 .grunion-type {
-	-ms-flex-positive: 0;
-	    flex-grow: 0;
-	-ms-flex-negative: 0;
-	    flex-shrink: 0;
+	flex-grow: 0;
+	flex-shrink: 0;
 }
 
 .grunion-type select {
@@ -720,10 +702,8 @@ input[type="submit"].button-primary {
 
 .grunion-required {
 	padding: 27px 16px 0 0;
-	-ms-flex-positive: 0;
-	    flex-grow: 0;
-	-ms-flex-negative: 0;
-	    flex-shrink: 0;
+	flex-grow: 0;
+	flex-shrink: 0;
 }
 
 .grunion-options {
@@ -737,7 +717,6 @@ input[type="submit"].button-primary {
 }
 
 .grunion-options li {
-	display: -ms-flexbox;
 	display: flex;
 	margin-bottom: 16px;
 }
@@ -764,21 +743,17 @@ input[type="submit"].button-primary {
 }
 
 .grunion-controls {
-	display: -ms-flexbox;
 	display: flex;
-	-ms-flex-wrap: wrap;
-	    flex-wrap: wrap;
+	flex-wrap: wrap;
 }
 
 .grunion-update-controls {
 	text-align: left;
-	-ms-flex-positive: 1;
-	    flex-grow: 1;
+	flex-grow: 1;
 }
 
 #add-field {
-	-ms-flex-positive: 0;
-	    flex-grow: 0;
+	flex-grow: 0;
 }
 
 .delete-option:before,

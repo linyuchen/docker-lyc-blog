@@ -230,9 +230,10 @@ abstract class BP_Core_oEmbed_Extension {
 
 		register_rest_route( 'oembed/1.0', "/embed/{$this->slug_endpoint}", array(
 			array(
-				'methods'  => WP_REST_Server::READABLE,
-				'callback' => array( $this, 'get_item' ),
-				'args'     => $args
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_item' ),
+				'permission_callback' => '__return_true',
+				'args'                => $args
 			),
 		) );
 	}
@@ -424,7 +425,7 @@ abstract class BP_Core_oEmbed_Extension {
 		if ( ! empty( $item_id ) ) {
 			// Add markers to tell that we're embedding a single activity.
 			// This is needed for various oEmbed response data filtering.
-			if ( empty( buddypress()->{$this->slug_endpoint} ) ) {
+			if ( ! isset( buddypress()->{$this->slug_endpoint} ) || ! buddypress()->{$this->slug_endpoint} ) {
 				buddypress()->{$this->slug_endpoint} = new stdClass;
 			}
 			buddypress()->{$this->slug_endpoint}->embedurl_in_progress = $url;
@@ -533,7 +534,7 @@ abstract class BP_Core_oEmbed_Extension {
 			$url = add_query_arg( 'embed', 'true', trailingslashit( $url ) );
 
 			// Add custom route args to iframe.
-			if ( ! empty( buddypress()->{$this->slug_endpoint}->embedargs_in_progress ) ) {
+			if ( isset( buddypress()->{$this->slug_endpoint}->embedargs_in_progress ) && buddypress()->{$this->slug_endpoint}->embedargs_in_progress ) {
 				foreach( buddypress()->{$this->slug_endpoint}->embedargs_in_progress as $key => $value ) {
 					$url = add_query_arg( $key, $value, $url );
 				}

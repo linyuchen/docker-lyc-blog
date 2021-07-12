@@ -112,9 +112,11 @@ function bp_nouveau_messages_localize_scripts( $params = array() ) {
 		'howtoBulk'     => __( 'Use the select box to define your bulk action and click on the &#10003; button to apply.', 'buddypress' ),
 		'toOthers'      => array(
 			'one'  => __( '(and 1 other)', 'buddypress' ),
+
+			/* translators: %s: number of message recipients */
 			'more' => __( '(and %d others)', 'buddypress' ),
 		),
-		'rootUrl' => parse_url( trailingslashit( bp_displayed_user_domain() . bp_get_messages_slug() ), PHP_URL_PATH ),
+		'rootUrl' => parse_url( trailingslashit( bp_displayed_user_domain() . bp_nouveau_get_component_slug( 'messages' ) ), PHP_URL_PATH ),
 	);
 
 	// Star private messages.
@@ -140,33 +142,10 @@ function bp_nouveau_messages_localize_scripts( $params = array() ) {
 /**
  * @since 3.0.0
  */
-function bp_nouveau_message_search_form() {
-	$query_arg   = bp_core_get_component_search_query_arg( 'messages' );
-	$placeholder = bp_get_search_default_text( 'messages' );
-
-	$search_form_html = '<form action="" method="get" id="search-messages-form">
-		<label for="messages_search"><input type="text" name="' . esc_attr( $query_arg ) . '" id="messages_search" placeholder="' . esc_attr( $placeholder ) . '" /></label>
-		<input type="submit" id="messages_search_submit" name="messages_search_submit" value="' . esc_attr_x( 'Search', 'button', 'buddypress' ) . '" />
-	</form>';
-
-	/**
-	 * Filters the private message component search form.
-	 *
-	 * @since 3.0.0
-	 *
-	 * @param string $search_form_html HTML markup for the message search form.
-	 */
-	echo apply_filters( 'bp_nouveau_message_search_form', $search_form_html );
-}
-add_filter( 'bp_message_search_form', 'bp_nouveau_message_search_form', 10, 1 );
-
-/**
- * @since 3.0.0
- */
 function bp_nouveau_messages_adjust_nav() {
 	$bp = buddypress();
 
-	$secondary_nav_items = $bp->members->nav->get_secondary( array( 'parent_slug' => bp_get_messages_slug() ), false );
+	$secondary_nav_items = $bp->members->nav->get_secondary( array( 'parent_slug' => bp_nouveau_get_component_slug( 'messages' ) ), false );
 
 	if ( empty( $secondary_nav_items ) ) {
 		return;
@@ -178,11 +157,11 @@ function bp_nouveau_messages_adjust_nav() {
 		}
 
 		if ( 'notices' === $secondary_nav_item->slug ) {
-			bp_core_remove_subnav_item( bp_get_messages_slug(), $secondary_nav_item->slug, 'members' );
+			bp_core_remove_subnav_item( bp_nouveau_get_component_slug( 'messages' ), $secondary_nav_item->slug, 'members' );
 		} elseif ( 'compose' === $secondary_nav_item->slug ) {
 			$bp->members->nav->edit_nav( array(
 				'user_has_access' => bp_is_my_profile()
-			), $secondary_nav_item->slug, bp_get_messages_slug() );
+			), $secondary_nav_item->slug, bp_nouveau_get_component_slug( 'messages' ) );
 		}
 	}
 }
@@ -195,7 +174,7 @@ function bp_nouveau_messages_adjust_admin_nav( $admin_nav ) {
 		return $admin_nav;
 	}
 
-	$user_messages_link = trailingslashit( bp_loggedin_user_domain() . bp_get_messages_slug() );
+	$user_messages_link = trailingslashit( bp_loggedin_user_domain() . bp_nouveau_get_component_slug( 'messages' ) );
 
 	foreach ( $admin_nav as $nav_iterator => $nav ) {
 		$nav_id = str_replace( 'my-account-messages-', '', $nav['id'] );
@@ -289,7 +268,7 @@ function bp_nouveau_push_sitewide_notices() {
 		$closed_notices = array();
 	}
 
-	if ( $notice->id && is_array( $closed_notices ) && ! in_array( $notice->id, $closed_notices ) ) {
+	if ( $notice->id && is_array( $closed_notices ) && ! in_array( $notice->id, $closed_notices, true ) ) {
 		// Inject the notice into the template_message if no other message has priority.
 		$bp = buddypress();
 

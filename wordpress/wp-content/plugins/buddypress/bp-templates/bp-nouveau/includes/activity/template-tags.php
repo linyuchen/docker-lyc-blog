@@ -3,7 +3,7 @@
  * Activity Template tags
  *
  * @since 3.0.0
- * @version 3.1.0
+ * @version 8.0.0
  */
 
 // Exit if accessed directly.
@@ -67,18 +67,12 @@ function bp_nouveau_after_activity_directory_content() {
  * Enqueue needed scripts for the Activity Post Form
  *
  * @since 3.0.0
+ * @since 5.0.0 Move the `bp_before_activity_post_form` hook inside the Activity post form.
  */
 function bp_nouveau_before_activity_post_form() {
 	if ( bp_nouveau_current_user_can( 'publish_activity' ) ) {
 		wp_enqueue_script( 'bp-nouveau-activity-post-form' );
 	}
-
-	/**
-	 * Fires before the activity post form.
-	 *
-	 * @since 1.2.0
-	 */
-	do_action( 'bp_before_activity_post_form' );
 }
 
 /**
@@ -375,7 +369,7 @@ function bp_nouveau_activity_entry_buttons( $args = array() ) {
 					'button_element'   => $button_element,
 					'link_class'       => 'button fav bp-secondary-action bp-tooltip',
 					'data_bp_tooltip'  => __( 'Mark as Favorite', 'buddypress' ),
-					'link_text'        => __( 'Favorite', 'buddypress' ),
+					'link_text'        => __( 'Mark as Favorite', 'buddypress' ),
 					'aria-pressed'     => 'false',
 					'link_attr'        => bp_get_activity_favorite_link(),
 				);
@@ -435,16 +429,20 @@ function bp_nouveau_activity_entry_buttons( $args = array() ) {
 				}
 			}
 
-			$delete_args = wp_parse_args( $delete_args, array(
-				'link_text'   => '',
-				'button_attr' => array(
-					'link_id'         => '',
-					'link_href'       => '',
-					'link_class'      => '',
-					'link_rel'        => 'nofollow',
-					'data_bp_tooltip' => '',
+			$delete_args = bp_parse_args(
+				$delete_args,
+				array(
+					'link_text'   => '',
+					'button_attr' => array(
+						'link_id'         => '',
+						'link_href'       => '',
+						'link_class'      => '',
+						'link_rel'        => 'nofollow',
+						'data_bp_tooltip' => '',
+					),
 				),
-			) );
+				'nouveau_get_activity_entry_buttons'
+			);
 		}
 
 		if ( empty( $delete_args['link_href'] ) ) {
@@ -516,7 +514,7 @@ function bp_nouveau_activity_entry_buttons( $args = array() ) {
 			}
 
 			$buttons['activity_spam']['button_attr'][ $data_element ] = wp_nonce_url(
-				bp_get_root_domain() . '/' . bp_get_activity_slug() . '/spam/' . $activity_id . '/',
+				bp_get_root_domain() . '/' . bp_nouveau_get_component_slug( 'activity' ) . '/spam/' . $activity_id . '/',
 				'bp_activity_akismet_spam_' . $activity_id
 			);
 		}
@@ -562,7 +560,7 @@ function bp_nouveau_activity_entry_buttons( $args = array() ) {
 			unset( $return['activity_delete'] );
 		}
 
-		if ( isset( $return['activity_spam'] ) && ! in_array( $activity_type, BP_Akismet::get_activity_types() ) ) {
+		if ( isset( $return['activity_spam'] ) && ! in_array( $activity_type, BP_Akismet::get_activity_types(), true ) ) {
 			unset( $return['activity_spam'] );
 		}
 
@@ -844,7 +842,7 @@ function bp_nouveau_activity_comment_buttons( $args = array() ) {
 			}
 
 			$buttons['activity_comment_spam']['button_attr'][ $data_element ] = wp_nonce_url(
-				bp_get_root_domain() . '/' . bp_get_activity_slug() . '/spam/' . $activity_comment_id . '/?cid=' . $activity_comment_id,
+				bp_get_root_domain() . '/' . bp_nouveau_get_component_slug( 'activity' ) . '/spam/' . $activity_comment_id . '/?cid=' . $activity_comment_id,
 				'bp_activity_akismet_spam_' . $activity_comment_id
 			);
 		}
@@ -913,4 +911,106 @@ function bp_nouveau_activity_comment_buttons( $args = array() ) {
 		do_action_ref_array( 'bp_nouveau_return_activity_comment_buttons', array( &$return, $activity_comment_id, $activity_id ) );
 
 		return $return;
+	}
+
+/**
+ * Outputs the Activity RSS link.
+ *
+ * @since 8.0.0
+ */
+function bp_nouveau_activity_rss_link() {
+	echo esc_url( bp_nouveau_activity_get_rss_link() );
+}
+
+	/**
+	 * Returns the Activity RSS link.
+	 *
+	 * @since 8.0.0
+	 *
+	 * @return string The Activity RSS link.
+	 */
+	function bp_nouveau_activity_get_rss_link() {
+		$bp_nouveau = bp_nouveau();
+		$link       = '';
+
+		if ( isset( $bp_nouveau->activity->current_rss_feed['link'] ) ) {
+			$link = $bp_nouveau->activity->current_rss_feed['link'];
+		}
+
+		/**
+		 * Filter here to edit the Activity RSS link.
+		 *
+		 * @since 8.0.0
+		 *
+		 * @param string The Activity RSS link.
+		 */
+		return apply_filters( 'bp_nouveau_activity_get_rss_link', $link );
+	}
+
+/**
+ * Outputs the Activity RSS Tooltip.
+ *
+ * @since 8.0.0
+ */
+function bp_nouveau_activity_rss_tooltip() {
+	echo esc_attr( bp_nouveau_activity_get_rss_tooltip() );
+}
+
+	/**
+	 * Returns the Activity RSS Tooltip.
+	 *
+	 * @since 8.0.0
+	 *
+	 * @return string The Activity RSS Tooltip.
+	 */
+	function bp_nouveau_activity_get_rss_tooltip() {
+		$bp_nouveau = bp_nouveau();
+		$tooltip       = '';
+
+		if ( isset( $bp_nouveau->activity->current_rss_feed['tooltip'] ) ) {
+			$tooltip = $bp_nouveau->activity->current_rss_feed['tooltip'];
+		}
+
+		/**
+		 * Filter here to edit the Activity RSS Tooltip.
+		 *
+		 * @since 8.0.0
+		 *
+		 * @param string The Activity RSS Tooltip.
+		 */
+		return apply_filters( 'bp_nouveau_activity_get_rss_tooltip', $tooltip );
+	}
+
+/**
+ * Outputs the Activity RSS screen reader text.
+ *
+ * @since 8.0.0
+ */
+function bp_nouveau_activity_rss_screen_reader_text() {
+	echo esc_attr( bp_nouveau_activity_get_rss_screen_reader_text() );
+}
+
+	/**
+	 * Returns the Activity RSS screen reader text.
+	 *
+	 * @since 8.0.0
+	 *
+	 * @return string The Activity RSS screen reader text.
+	 */
+	function bp_nouveau_activity_get_rss_screen_reader_text() {
+		$bp_nouveau         = bp_nouveau();
+		$screen_reader_text = '';
+
+		if ( isset( $bp_nouveau->activity->current_rss_feed['tooltip'] ) ) {
+			$screen_reader_text = $bp_nouveau->activity->current_rss_feed['tooltip'];
+		}
+
+		/**
+		 * Filter here to edit the Activity RSS screen reader text.
+		 *
+		 * @since 8.0.0
+		 *
+		 * @param string The Activity RSS screen reader text.
+		 */
+		return apply_filters( 'bp_nouveau_activity_get_rss_screen_reader_text', $screen_reader_text );
 	}

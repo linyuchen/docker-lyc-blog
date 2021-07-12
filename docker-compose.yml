@@ -1,0 +1,33 @@
+version: '3.3'
+
+services:
+
+  wordpress:
+    image: wordpress
+    restart: always
+    build:
+        context: ./
+        dockerfile: Dockerfile
+    ports:
+      - 8080:80
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: linyuchen
+      WORDPRESS_DB_PASSWORD: uLNTcf7
+      WORDPRESS_DB_NAME: wordpress_lyc
+    volumes:
+      - ./wordpress:/var/www/html
+#      - ./ssl:/etc/apache2/ssl
+#      - ./ssl.conf:/etc/apache2/sites-enabled/ssl.conf
+#    command: /bin/bash -c "a2enmod ssl"
+
+  db:
+    image: mysql:5.7
+    restart: always
+    environment:
+      MYSQL_DATABASE: wordpress_lyc
+      MYSQL_USER: linyuchen
+      MYSQL_PASSWORD: uLNTcf7
+      MYSQL_ROOT_PASSWORD: uLNTcf7
+    volumes:
+      - ./mysql-data:/var/lib/mysql

@@ -94,3 +94,13 @@ if ( !defined('ABSPATH') )
 
 /** 设置WordPress变量和包含文件。 */
 require_once(ABSPATH . 'wp-settings.php');
+
+// 设置更新
+define("FS_METHOD","direct");
+define("FS_CHMOD_DIR", 0777);
+define("FS_CHMOD_FILE", 0777);
+
+//解决重定向次数过多
+//$_SERVER['HTTPS'] = 'on';
+//define('FORCE_SSL_LOGIN', true);
+//define('FORCE_SSL_ADMIN', true);

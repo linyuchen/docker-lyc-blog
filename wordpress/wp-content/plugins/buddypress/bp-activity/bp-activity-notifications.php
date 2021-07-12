@@ -19,7 +19,7 @@ defined( 'ABSPATH' ) || exit;
  * @param int    $item_id           The activity ID.
  * @param int    $secondary_item_id In the case of at-mentions, this is the mentioner's ID.
  * @param int    $total_items       The total number of notifications to format.
- * @param string $format            'string' to get a BuddyBar-compatible notification, 'array' otherwise.
+ * @param string $format            'string' for notification HTML link or 'array' for separate link and text.
  * @param int    $id                Optional. The notification ID.
  * @return string $return Formatted @mention notification.
  */
@@ -34,13 +34,17 @@ function bp_activity_format_notifications( $action, $item_id, $secondary_item_id
 		case 'new_at_mention':
 			$action_filter = 'at_mentions';
 			$link          = bp_loggedin_user_domain() . bp_get_activity_slug() . '/mentions/';
-			$title         = sprintf( __( '@%s Mentions', 'buddypress' ), bp_get_loggedin_user_username() );
-			$amount        = 'single';
+
+			/* translators: %s: the current user display name */
+			$title  = sprintf( __( '@%s Mentions', 'buddypress' ), bp_get_loggedin_user_username() );
+			$amount = 'single';
 
 			if ( (int) $total_items > 1 ) {
+				/* translators: 1: the number of activity mentions */
 				$text   = sprintf( __( 'You have %1$d new mentions', 'buddypress' ), (int) $total_items );
 				$amount = 'multiple';
 			} else {
+				/* translators: 1: the user display name */
 				$text = sprintf( __( '%1$s mentioned you', 'buddypress' ), $user_fullname );
 			}
 		break;
@@ -51,11 +55,15 @@ function bp_activity_format_notifications( $action, $item_id, $secondary_item_id
 			$amount = 'single';
 
 			if ( (int) $total_items > 1 ) {
-				$link   = add_query_arg( 'type', $action, $link );
+				$link = add_query_arg( 'type', $action, $link );
+
+				/* translators: 1: the number of activity replies */
 				$text   = sprintf( __( 'You have %1$d new replies', 'buddypress' ), (int) $total_items );
 				$amount = 'multiple';
 			} else {
-				$link = add_query_arg( 'nid', (int) $id, bp_activity_get_permalink( $activity_id ) );
+				$link = add_query_arg( 'rid', (int) $id, bp_activity_get_permalink( $activity_id ) );
+
+				/* translators: 1: the user display name */
 				$text = sprintf( __( '%1$s commented on one of your updates', 'buddypress' ), $user_fullname );
 			}
 		break;
@@ -66,12 +74,16 @@ function bp_activity_format_notifications( $action, $item_id, $secondary_item_id
 			$amount = 'single';
 
 			if ( (int) $total_items > 1 ) {
-				$link   = add_query_arg( 'type', $action, $link );
+				$link = add_query_arg( 'type', $action, $link );
+
+				/* translators: 1: the number of activity comment replies */
 				$text   = sprintf( __( 'You have %1$d new comment replies', 'buddypress' ), (int) $total_items );
 				$amount = 'multiple';
 			} else {
-				$link = add_query_arg( 'nid', (int) $id, bp_activity_get_permalink( $activity_id ) );
-				$text = sprintf( __( '%1$s replied to one your activity comments', 'buddypress' ), $user_fullname );
+				$link = add_query_arg( 'crid', (int) $id, bp_activity_get_permalink( $activity_id ) );
+
+				/* translators: 1: the user display name */
+				$text = sprintf( __( '%1$s replied to one of your activity comments', 'buddypress' ), $user_fullname );
 			}
 		break;
 	}
@@ -226,9 +238,10 @@ function bp_activity_remove_screen_notifications( $user_id = 0 ) {
 add_action( 'bp_activity_clear_new_mentions', 'bp_activity_remove_screen_notifications', 10, 1 );
 
 /**
- * Mark at-mention notification as read when user visits the activity with the mention.
+ * Mark notifications as read when a user visits an activity permalink.
  *
  * @since 2.0.0
+ * @since 3.2.0 Marks replies to parent update and replies to an activity comment as read.
  *
  * @param BP_Activity_Activity $activity Activity object.
  */
@@ -239,6 +252,29 @@ function bp_activity_remove_screen_notifications_single_activity_permalink( $act
 
 	// Mark as read any notifications for the current user related to this activity item.
 	bp_notifications_mark_notifications_by_item_id( bp_loggedin_user_id(), $activity->id, buddypress()->activity->id, 'new_at_mention' );
+
+	$comment_id = 0;
+	// For replies to a parent update.
+	if ( ! empty( $_GET['rid'] ) ) {
+		$comment_id = (int) $_GET['rid'];
+
+	// For replies to an activity comment.
+	} elseif ( ! empty( $_GET['crid'] ) ) {
+		$comment_id = (int) $_GET['crid'];
+	}
+
+	// Mark individual activity reply notification as read.
+	if ( ! empty( $comment_id ) ) {
+		BP_Notifications_Notification::update(
+			array(
+				'is_new' => false
+			),
+			array(
+				'user_id' => bp_loggedin_user_id(),
+				'id'      => $comment_id
+			)
+		);
+	}
 }
 add_action( 'bp_activity_screen_single_activity_permalink', 'bp_activity_remove_screen_notifications_single_activity_permalink' );
 
@@ -372,14 +408,19 @@ function bp_activity_screen_notification_settings() {
 			<?php if ( bp_activity_do_mentions() ) : ?>
 				<tr id="activity-notification-settings-mentions">
 					<td>&nbsp;</td>
-					<td><?php printf( __( 'A member mentions you in an update using "@%s"', 'buddypress' ), bp_core_get_username( bp_displayed_user_id() ) ) ?></td>
+					<td>
+						<?php
+						/* translators: %s: the displayed user username */
+						printf( __( 'A member mentions you in an update using "@%s"', 'buddypress' ), bp_core_get_username( bp_displayed_user_id() ) );
+						?>
+					</td>
 					<td class="yes"><input type="radio" name="notifications[notification_activity_new_mention]" id="notification-activity-new-mention-yes" value="yes" <?php checked( $mention, 'yes', true ) ?>/><label for="notification-activity-new-mention-yes" class="bp-screen-reader-text"><?php
 						/* translators: accessibility text */
-						_e( 'Yes, send email', 'buddypress' );
+						esc_html_e( 'Yes, send email', 'buddypress' );
 					?></label></td>
 					<td class="no"><input type="radio" name="notifications[notification_activity_new_mention]" id="notification-activity-new-mention-no" value="no" <?php checked( $mention, 'no', true ) ?>/><label for="notification-activity-new-mention-no" class="bp-screen-reader-text"><?php
 						/* translators: accessibility text */
-						_e( 'No, do not send email', 'buddypress' );
+						esc_html_e( 'No, do not send email', 'buddypress' );
 					?></label></td>
 				</tr>
 			<?php endif; ?>
@@ -389,11 +430,11 @@ function bp_activity_screen_notification_settings() {
 				<td><?php _e( "A member replies to an update or comment you've posted", 'buddypress' ) ?></td>
 				<td class="yes"><input type="radio" name="notifications[notification_activity_new_reply]" id="notification-activity-new-reply-yes" value="yes" <?php checked( $reply, 'yes', true ) ?>/><label for="notification-activity-new-reply-yes" class="bp-screen-reader-text"><?php
 					/* translators: accessibility text */
-					_e( 'Yes, send email', 'buddypress' );
+					esc_html_e( 'Yes, send email', 'buddypress' );
 				?></label></td>
 				<td class="no"><input type="radio" name="notifications[notification_activity_new_reply]" id="notification-activity-new-reply-no" value="no" <?php checked( $reply, 'no', true ) ?>/><label for="notification-activity-new-reply-no" class="bp-screen-reader-text"><?php
 					/* translators: accessibility text */
-					_e( 'No, do not send email', 'buddypress' );
+					esc_html_e( 'No, do not send email', 'buddypress' );
 				?></label></td>
 			</tr>
 

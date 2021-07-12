@@ -3,7 +3,7 @@
  * BuddyPress - Groups Header
  *
  * @since 3.0.0
- * @version 3.1.0
+ * @version 7.0.0
  */
 ?>
 
@@ -21,38 +21,53 @@
 
 <div id="item-header-content">
 
-	<p class="highlight group-status"><strong><?php echo esc_html( bp_nouveau_group_meta()->status ); ?></strong></p>
+	<?php if ( bp_nouveau_group_has_meta( 'status' ) ) : ?>
+		<p class="highlight group-status"><strong><?php echo esc_html( bp_nouveau_the_group_meta( array( 'keys' => 'status' ) ) ); ?></strong></p>
+	<?php endif; ?>
 
-	<p class="activity" data-livestamp="<?php bp_core_iso8601_date( bp_get_group_last_active( 0, array( 'relative' => false ) ) ); ?>">
+	<p class="activity">
 		<?php
-		echo esc_html(
-			sprintf(
-				/* translators: %s = last activity timestamp (e.g. "active 1 hour ago") */
-				__( 'active %s', 'buddypress' ),
-				bp_get_group_last_active()
-			)
-		);
+			printf(
+				/* translators: %s: last activity timestamp (e.g. "Active 1 hour ago") */
+				esc_html__( 'Active %s', 'buddypress' ),
+				sprintf(
+					'<span data-livestamp="%1$s">%2$s</span>',
+					bp_core_get_iso8601_date( bp_get_group_last_active( 0, array( 'relative' => false ) ) ),
+					esc_html( bp_get_group_last_active() )
+				)
+			);
 		?>
 	</p>
+
+	<?php
+	bp_group_type_list(
+		bp_get_group_id(),
+		array(
+			'label'        => array(
+				'plural'   => __( 'Group Types', 'buddypress' ),
+				'singular' => __( 'Group Type', 'buddypress' ),
+			),
+			'list_element' => 'span',
+		)
+	);
+	?>
 
 	<?php bp_nouveau_group_hook( 'before', 'header_meta' ); ?>
 
 	<?php if ( bp_nouveau_group_has_meta_extra() ) : ?>
 		<div class="item-meta">
 
-			<?php echo bp_nouveau_group_meta()->extra; ?>
+			<?php echo bp_nouveau_the_group_meta( array( 'keys' => 'extra' ) ); ?>
 
 		</div><!-- .item-meta -->
 	<?php endif; ?>
 
 
-		<?php if ( ! bp_nouveau_groups_front_page_description() ) { ?>
-			<?php if ( bp_nouveau_group_meta()->description ) { ?>
-				<div class="group-description">
-					<?php echo bp_nouveau_group_meta()->description; ?>
-				</div><!-- //.group_description -->
-			<?php	} ?>
-		<?php } ?>
+		<?php if ( ! bp_nouveau_groups_front_page_description() && bp_nouveau_group_has_meta( 'description' ) ) : ?>
+			<div class="group-description">
+				<?php bp_group_description(); ?>
+			</div><!-- //.group_description -->
+		<?php endif; ?>
 
 </div><!-- #item-header-content -->
 

@@ -46,6 +46,7 @@ class BP_Notifications_Component extends BP_Component {
 		$includes = array(
 			'adminbar',
 			'template',
+			'filters',
 			'functions',
 			'cache',
 		);
@@ -163,7 +164,7 @@ class BP_Notifications_Component extends BP_Component {
 				sprintf(
 					'<span class="%s">%s</span>',
 					esc_attr( $class ),
-					bp_core_number_format( $count )
+					esc_html( $count )
 				)
 			);
 		} else {
@@ -313,5 +314,17 @@ class BP_Notifications_Component extends BP_Component {
 		) );
 
 		parent::setup_cache_groups();
+	}
+
+	/**
+	 * Init the BP REST API.
+	 *
+	 * @since 5.0.0
+	 *
+	 * @param array $controllers Optional. See BP_Component::rest_api_init() for
+	 *                           description.
+	 */
+	public function rest_api_init( $controllers = array() ) {
+		parent::rest_api_init( array( 'BP_REST_Notifications_Endpoint' ) );
 	}
 }

@@ -135,3 +135,54 @@ function bp_blogs_register_custom_site_icon_size( $sizes ) {
 	return $sizes;
 }
 add_filter( 'site_icon_image_sizes', 'bp_blogs_register_custom_site_icon_size' );
+
+/**
+ * Use the mystery blog avatar for blogs.
+ *
+ * @since 7.0.0
+ *
+ * @param string $avatar Current avatar src.
+ * @param array  $params Avatar params.
+ * @return string
+ */
+function bp_blogs_default_avatar( $avatar, $params ) {
+	if ( isset( $params['object'] ) && 'blog' === $params['object'] ) {
+		if ( isset( $params['type'] ) && 'thumb' === $params['type'] ) {
+			$file = 'mystery-blog-50.png';
+		} else {
+			$file = 'mystery-blog.png';
+		}
+
+		$avatar = buddypress()->plugin_url . "bp-core/images/$file";
+	}
+
+	return $avatar;
+}
+add_filter( 'bp_core_default_avatar',       'bp_blogs_default_avatar', 10, 2 );
+add_filter( 'bp_core_avatar_default_thumb', 'bp_blogs_default_avatar', 10, 2 );
+
+/**
+ * Filters the column name during blog metadata queries.
+ *
+ * This filters 'sanitize_key', which is used during various core metadata
+ * API functions: {@link https://core.trac.wordpress.org/browser/branches/4.9/src/wp-includes/meta.php?lines=47,160,324}.
+ * Due to how we are passing our meta type, we need to ensure that the correct
+ * DB column is referenced during blogmeta queries.
+ *
+ * @since 4.0.0
+ *
+ * @see bp_blogs_delete_blogmeta()
+ * @see bp_blogs_get_blogmeta()
+ * @see bp_blogs_update_blogmeta()
+ * @see bp_blogs_add_blogmeta()
+ *
+ * @param string $retval
+ *
+ * @return string
+ */
+function bp_blogs_filter_meta_column_name( $retval ) {
+	if ( 'bp_blog_id' === $retval ) {
+		$retval = 'blog_id';
+	}
+	return $retval;
+}

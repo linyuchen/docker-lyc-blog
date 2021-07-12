@@ -3,7 +3,7 @@
  * BuddyPress - Members/Blogs Registration forms
  *
  * @since 3.0.0
- * @version 3.1.0
+ * @version 8.0.0
  */
 
 ?>
@@ -38,7 +38,7 @@
 
 				<?php /***** Extra Profile Details ******/ ?>
 
-				<?php if ( bp_is_active( 'xprofile' ) && bp_nouveau_base_account_has_xprofile() ) : ?>
+				<?php if ( bp_is_active( 'xprofile' ) && bp_nouveau_has_signup_xprofile_fields( true ) ) : ?>
 
 					<?php bp_nouveau_signup_hook( 'before', 'signup_profile' ); ?>
 
@@ -102,13 +102,21 @@
 
 				<?php endif; ?>
 
-				</div><!-- //.layout-wrap -->
+			<?php endif; // request-details signup step ?>
+
+			</div><!-- //.layout-wrap -->
+
+			<?php bp_nouveau_signup_hook( 'custom', 'steps' ); ?>
+
+			<?php if ( 'request-details' === bp_get_current_signup_step() ) : ?>
+
+				<?php if ( bp_signup_requires_privacy_policy_acceptance() ) : ?>
+					<?php bp_nouveau_signup_privacy_policy_acceptance_section(); ?>
+				<?php endif; ?>
 
 				<?php bp_nouveau_submit_button( 'register' ); ?>
 
-			<?php endif; // request-details signup step ?>
-
-			<?php bp_nouveau_signup_hook( 'custom', 'steps' ); ?>
+			<?php endif; ?>
 
 			</form>
 

@@ -1,9 +1,10 @@
 /* jshint browser: true */
-/* global bp, BP_Nouveau */
-/* @version 3.1.0 */
+/* global BP_Nouveau */
+/* @since 3.0.0 */
+/* @version 8.0.0 */
 window.bp = window.bp || {};
 
-( function( exports, $ ) {
+( function( bp, $ ) {
 
 	// Bail if not set
 	if ( typeof BP_Nouveau === 'undefined' ) {
@@ -63,6 +64,7 @@ window.bp = window.bp || {};
 
 			// Inject Activities
 			$( '#buddypress [data-bp-list="activity"]' ).on( 'click', 'li.load-newest, li.load-more', this.injectActivities.bind( this ) );
+			$( '#buddypress [data-bp-list]' ).on( 'bp_ajax_request', this.updateRssLink );
 
 			// Hightlight new activities & clean up the stream
 			$( '#buddypress' ).on( 'bp_ajax_request', '[data-bp-list="activity"]', this.scopeLoaded.bind( this ) );
@@ -73,7 +75,7 @@ window.bp = window.bp || {};
 
 			// Activity actions
 			$( '#buddypress [data-bp-list="activity"]' ).on( 'click', '.activity-item', bp.Nouveau, this.activityActions );
-			$( document ).keydown( this.commentFormAction );
+			$( document ).on( 'keydown', this.commentFormAction );
 		},
 
 		/**
@@ -345,7 +347,11 @@ window.bp = window.bp || {};
 
 						// Prepend a link to display all
 						if ( ! i ) {
-							$( item ).before( '<li class="show-all"><button class="text-button" type="button" data-bp-show-comments-id="#' + activity_item.prop( 'id' ) + '/show-all/"><span class="icon dashicons dashicons-visibility" aria-hidden="true"></span> ' + BP_Nouveau.show_x_comments.replace( '%d', comment_count ) + '</button></li>' );
+							var activity_id = activity_item.data( 'bpActivityId' );
+							if ( 'undefined' !== typeof activity_id ) {
+								activity_id = parseInt( activity_id, 10 );
+								$( item ).before( '<li class="show-all"><button class="text-button" type="button" data-bp-show-comments-id="#activity-' + activity_id + '/show-all/"><span class="icon dashicons dashicons-visibility" aria-hidden="true"></span> ' + BP_Nouveau.show_x_comments.replace( '%d', comment_count ) + '</button></li>' );
+							}
 						}
 					}
 				} );
@@ -461,7 +467,7 @@ window.bp = window.bp || {};
 							} else {
 								$( this ).html( response.data.content );
 							}
-							$( this ).prop( 'title', response.data.content );
+							$( this ).attr( 'data-bp-tooltip', response.data.content );
 
 							if ('false' === $(this).attr('aria-pressed') ) {
 								$( this ).attr('aria-pressed', 'true');
@@ -695,7 +701,7 @@ window.bp = window.bp || {};
 					easing:'swing'
 				} );
 
-				$( '#ac-form-' + activity_id + ' textarea' ).focus();
+				$( '#ac-form-' + activity_id + ' textarea' ).trigger( 'focus' );
 			}
 
 			// Removing the form
@@ -731,7 +737,7 @@ window.bp = window.bp || {};
 
 				comment_data = {
 					action                        : 'new_activity_comment',
-					_wpnonce_new_activity_comment : $( '#_wpnonce_new_activity_comment' ).val(),
+					_wpnonce_new_activity_comment : $( '#_wpnonce_new_activity_comment' + '_' + activity_id ).val(),
 					comment_id                    : item_id,
 					form_id                       : activity_id,
 					content                       : comment_content.val()
@@ -819,7 +825,7 @@ window.bp = window.bp || {};
 				return event;
 			}
 
-			keyCode = ( event.keyCode) ? event.keyCode : event.which;
+			keyCode = ( event.keyCode ) ? event.keyCode : event.which;
 
 			if ( 27 === keyCode && false === event.ctrlKey  ) {
 				if ( element.tagName === 'TEXTAREA' ) {
@@ -828,10 +834,18 @@ window.bp = window.bp || {};
 			} else if ( event.ctrlKey && 13 === keyCode && $( element ).val() ) {
 				$( element ).closest( 'form' ).find( '[type=submit]' ).first().trigger( 'click' );
 			}
+		},
+
+		updateRssLink: function( event, data ) {
+			var rssLink = data.response.feed_url || '';
+
+			if ( rssLink && $( 'body:not(.bp-user) #activity-rss-feed' ).length ) {
+				$( '#activity-rss-feed' ).find( 'a' ).first().prop( 'href', rssLink );
+			}
 		}
 	};
 
 	// Launch BP Nouveau Activity
 	bp.Nouveau.Activity.start();
 
-} )( bp, jQuery );
+} )( window.bp, jQuery );

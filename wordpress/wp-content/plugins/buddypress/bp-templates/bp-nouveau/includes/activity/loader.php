@@ -3,7 +3,7 @@
  * BP Nouveau Activity
  *
  * @since 3.0.0
- * @version 3.0.0
+ * @version 8.0.0
  */
 
 // Exit if accessed directly.
@@ -15,6 +15,22 @@ defined( 'ABSPATH' ) || exit;
  * @since 3.0.0
  */
 class BP_Nouveau_Activity {
+	/**
+	 * Nouveau Activity directory.
+	 *
+	 * @since 3.0.0
+	 * @var string
+	 */
+	public $dir = '';
+
+	/**
+	 * RSS feed link data.
+	 *
+	 * @since 3.0.0
+	 * @var string
+	 */
+	public $current_rss_feed = array();
+
 	/**
 	 * Constructor
 	 *
@@ -58,7 +74,7 @@ class BP_Nouveau_Activity {
 					// Check to see if action is activity-specific.
 					( false !== strpos( $_REQUEST['action'], 'activity' ) || ( 'post_update' === $_REQUEST['action'] ) )
 				) {
-					require $this->dir . 'ajax.php';
+					require bp_nouveau()->activity->dir . 'ajax.php';
 				}
 			} );
 		}

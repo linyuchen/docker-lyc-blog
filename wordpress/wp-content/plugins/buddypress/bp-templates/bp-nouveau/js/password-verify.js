@@ -1,21 +1,32 @@
 /* jshint undef: false */
 /* Password Verify */
 /* global pwsL10n */
-/* @version 3.0.0 */
+/* @since 3.0.0 */
+/* @version 8.0.0 */
 ( function( $ ){
+	/**
+	 * Function to inform the user about the strength of its password.
+	 *
+	 * @deprecated since version 5.0.0.
+	 */
 	function check_pass_strength() {
 		var pass1 = $( '.password-entry' ).val(),
 		    pass2 = $( '.password-entry-confirm' ).val(),
 		    strength;
 
-		// Reset classes and result text
+		// Reset classes and result text.
 		$( '#pass-strength-result' ).removeClass( 'show mismatch short bad good strong' );
 		if ( ! pass1 ) {
 			$( '#pass-strength-result' ).html( pwsL10n.empty );
 			return;
 		}
 
-		strength = wp.passwordStrength.meter( pass1, wp.passwordStrength.userInputBlacklist(), pass2 );
+		// wp.passwordStrength.userInputBlacklist() has been deprecated in WP 5.5.0.
+		if ( 'function' === typeof wp.passwordStrength.userInputDisallowedList ) {
+			strength = wp.passwordStrength.meter( pass1, wp.passwordStrength.userInputDisallowedList(), pass2 );
+		} else {
+			strength = wp.passwordStrength.meter( pass1, wp.passwordStrength.userInputBlacklist(), pass2 );
+		}
 
 		switch ( strength ) {
 			case 2:
@@ -36,10 +47,13 @@
 		}
 	}
 
-	// Bind check_pass_strength to keyup events in the password fields
-	$( document ).ready( function() {
+	// Bind check_pass_strength to keyup events in the password fields.
+	$( function() {
 		$( '.password-entry' ).val( '' ).keyup( check_pass_strength );
 		$( '.password-entry-confirm' ).val( '' ).keyup( check_pass_strength );
+
+		// Display a deprecated warning.
+		console.warn( 'The bp-nouveau/js/password-verify.js script is deprecated since 5.0.0 and will be deleted in version 6.0.0.' );
 	} );
 
 } )( jQuery );

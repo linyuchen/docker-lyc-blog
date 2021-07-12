@@ -3,7 +3,7 @@
  * BP Nouveau Activity widgets
  *
  * @since 3.0.0
- * @version 3.1.0
+ * @version 8.0.0
  */
 
 // Exit if accessed directly.
@@ -80,14 +80,18 @@ class BP_Latest_Activities extends WP_Widget {
 		 */
 		$title = apply_filters( 'widget_title', $title, $instance, $this->id_base );
 
-		// Check instance for custom max number of activities to display
+		// Check instance for custom max number of activities to display.
 		if ( ! empty( $instance['max'] ) ) {
 			$max = (int) $instance['max'];
 		}
 
-		// Check instance for custom activity types
+		// Check instance for custom activity types.
 		if ( ! empty( $instance['type'] ) ) {
-			$type    = maybe_unserialize( $instance['type'] );
+			$type = maybe_unserialize( $instance['type'] );
+			if ( ! is_array( $type ) ) {
+				$type = (array) maybe_unserialize( $type );
+			}
+
 			$classes = array_map( 'sanitize_html_class', array_merge( $type, array( 'bp-latest-activities' ) ) );
 
 			// Add classes to the container
@@ -165,11 +169,15 @@ class BP_Latest_Activities extends WP_Widget {
 	 * @return string HTML output.
 	 */
 	public function form( $instance ) {
-		$instance = wp_parse_args( (array) $instance, array(
-			'title' => __( 'Latest updates', 'buddypress' ),
-			'max'   => 5,
-			'type'  => '',
-		) );
+		$instance = bp_parse_args(
+			(array) $instance,
+			array(
+				'title' => __( 'Latest updates', 'buddypress' ),
+				'max'   => 5,
+				'type'  => '',
+			),
+			'widget_latest_activities'
+		);
 
 		$title = esc_attr( $instance['title'] );
 		$max   = (int) $instance['max'];
@@ -177,6 +185,9 @@ class BP_Latest_Activities extends WP_Widget {
 		$type = array( 'activity_update' );
 		if ( ! empty( $instance['type'] ) ) {
 			$type = maybe_unserialize( $instance['type'] );
+			if ( ! is_array( $type ) ) {
+				$type = (array) maybe_unserialize( $type );
+			}
 		}
 		?>
 		<p>
@@ -192,7 +203,7 @@ class BP_Latest_Activities extends WP_Widget {
 			<label for="<?php echo $this->get_field_id( 'type' ); ?>"><?php esc_html_e( 'Type:', 'buddypress' ); ?></label>
 			<select class="widefat" multiple="multiple" id="<?php echo $this->get_field_id( 'type' ); ?>" name="<?php echo $this->get_field_name( 'type' ); ?>[]">
 				<?php foreach ( bp_nouveau_get_activity_filters() as $key => $name ) : ?>
-					<option value="<?php echo esc_attr( $key ); ?>" <?php selected( in_array( $key, $type ) ); ?>><?php echo esc_html( $name ); ?></option>
+					<option value="<?php echo esc_attr( $key ); ?>" <?php selected( in_array( $key, $type, true ) ); ?>><?php echo esc_html( $name ); ?></option>
 				<?php endforeach; ?>
 			</select>
 		</p>

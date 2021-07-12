@@ -3,7 +3,7 @@
  * Common template tags
  *
  * @since 3.0.0
- * @version 3.1.0
+ * @version 8.0.0
  */
 
 // Exit if accessed directly.
@@ -87,9 +87,10 @@ function bp_nouveau_friend_hook( $suffix = '' ) {
  * @since 3.0.0
  */
 function bp_nouveau_template_message_classes() {
-	$classes = array( 'bp-feedback', 'bp-messages' );
+	$bp_nouveau = bp_nouveau();
+	$classes    = array( 'bp-feedback', 'bp-messages' );
 
-	if ( ! empty( bp_nouveau()->template_message['message'] ) ) {
+	if ( ! empty( $bp_nouveau->template_message['message'] ) ) {
 		$classes[] = 'bp-template-notice';
 	}
 
@@ -445,6 +446,33 @@ function bp_nouveau_pagination( $position ) {
 			$bottom_hook = '';
 			$page_arg    = $GLOBALS['requests_template']->pag_arg;
 			break;
+
+		default:
+			/**
+			 * Use this filter to define your custom pagination parameters.
+			 *
+			 * @since 6.0.0
+			 *
+			 * @param array $value {
+			 *     An associative array of pagination parameters.
+			 *     @type string   $pag_count Information about the pagination count.
+			 *                               eg: "Viewing 1 - 10 of 20 items".
+			 *     @type string   $pag_links The Pagination links.
+			 *     @type string   $page_arg  The argument to use to pass the page number.
+			 * }
+			 * @param string $pagination_type Information about the pagination type.
+			 */
+			$pagination_params = apply_filters( 'bp_nouveau_pagination_params',
+				array(
+					'pag_count' => '',
+					'pag_links' => '',
+					'page_arg'  => '',
+				),
+				$pagination_type
+			);
+
+			list( $pag_count, $pag_links, $page_arg ) = array_values( $pagination_params );
+			break;
 	}
 
 	$count_class = sprintf( '%1$s-%2$s-count-%3$s', $pagination_type, $screen, $position );
@@ -519,14 +547,23 @@ function bp_nouveau_loop_classes() {
 		$bp_nouveau = bp_nouveau();
 
 		// @todo: this function could do with passing args so we can pass simple strings in or array of strings
+		$is_directory = bp_is_directory();
 
 		// The $component is faked if it's the single group member loop
-		if ( ! bp_is_directory() && ( bp_is_group() && 'members' === bp_current_action() ) ) {
+		if ( ! $is_directory && ( bp_is_group() && 'members' === bp_current_action() ) ) {
 			$component = 'members_group';
-		} elseif ( ! bp_is_directory() && ( bp_is_user() && 'my-friends' === bp_current_action() ) ) {
+		} elseif ( ! $is_directory && ( bp_is_user() && 'my-friends' === bp_current_action() ) ) {
 			$component = 'members_friends';
 		} else {
 			$component = sanitize_key( bp_current_component() );
+		}
+
+		/*
+		 * For the groups component, we need to take in account the
+		 * Groups directory can list Groups according to a Group Type.
+		 */
+		if ( 'groups' === $component ) {
+			$is_directory = bp_is_groups_directory();
 		}
 
 		$classes = array(
@@ -556,7 +593,7 @@ function bp_nouveau_loop_classes() {
 		);
 
 		// Only the available components supports custom layouts.
-		if ( ! empty( $available_components[ $component ] ) && ( bp_is_directory() || bp_is_group() || bp_is_user() ) ) {
+		if ( ! empty( $available_components[ $component ] ) && ( $is_directory || bp_is_group() || bp_is_user() ) ) {
 			$customizer_option = sprintf( '%s_layout', $component );
 			$layout_prefs      = bp_nouveau_get_temporary_setting(
 				$customizer_option,
@@ -571,6 +608,10 @@ function bp_nouveau_loop_classes() {
 						'grid',
 						$grid_classes[ $layout_prefs ],
 					) );
+				}
+
+				if ( ! isset( $bp_nouveau->{$component} ) ) {
+					$bp_nouveau->{$component} = new stdClass;
 				}
 
 				// Set the global for a later use.
@@ -652,6 +693,25 @@ function bp_dir_is_vert_layout() {
 }
 
 /**
+ * Template tag to wrap the Legacy actions that was used
+ * after the components directory page.
+ *
+ * @since 6.0.0
+ */
+function bp_nouveau_after_directory_page() {
+	$component = bp_current_component();
+
+	/**
+	 * Fires at the bottom of the activity, members, groups and blogs directory template file.
+	 *
+	 * @since 1.5.0 Added to the members, groups directory template file.
+	 * @since 2.3.0 Added to the blogs directory template file.
+	 * @since 6.0.0 Added to the activity directory template file.
+	 */
+	do_action( "bp_after_directory_{$component}_page" );
+}
+
+/**
  * Get the full size avatar args.
  *
  * @since 3.0.0
@@ -708,12 +768,16 @@ function bp_nouveau_avatar_args() {
 function bp_nouveau_has_nav( $args = array() ) {
 	$bp_nouveau = bp_nouveau();
 
-	$n = wp_parse_args( $args, array(
-		'type'                    => 'primary',
-		'object'                  => '',
-		'user_has_access'         => true,
-		'show_for_displayed_user' => true,
-	) );
+	$n = bp_parse_args(
+		$args,
+		array(
+			'type'                    => 'primary',
+			'object'                  => '',
+			'user_has_access'         => true,
+			'show_for_displayed_user' => true,
+		),
+		'nouveau_has_nav'
+	);
 
 	if ( empty( $n['type'] ) ) {
 		return false;
@@ -903,8 +967,14 @@ function bp_nouveau_nav_classes() {
 		$nav_item   = $bp_nouveau->current_nav_item;
 		$classes    = array();
 
-		if ( 'directory' === $bp_nouveau->displayed_nav && ! empty( $nav_item->li_class ) ) {
-			$classes = (array) $nav_item->li_class;
+		if ( 'directory' === $bp_nouveau->displayed_nav ) {
+			if ( ! empty( $nav_item->li_class ) ) {
+				$classes = (array) $nav_item->li_class;
+			}
+
+			if ( bp_get_current_member_type() || ( bp_is_groups_directory() && bp_get_current_group_directory_type() ) ) {
+				$classes[] = 'no-ajax';
+			}
 		} elseif ( 'groups' === $bp_nouveau->displayed_nav || 'personal' === $bp_nouveau->displayed_nav ) {
 			$classes  = array( 'bp-' . $bp_nouveau->displayed_nav . '-tab' );
 			$selected = bp_current_action();
@@ -1387,11 +1457,12 @@ function bp_nouveau_container_classes() {
 	 * Returns the main BuddyPress container classes.
 	 *
 	 * @since 3.0.0
+	 * @since 7.0.0 Add a class to inform about the active Theme.
 	 *
 	 * @return string CSS classes
 	 */
 	function bp_nouveau_get_container_classes() {
-		$classes           = array( 'buddypress-wrap' );
+		$classes           = array( 'buddypress-wrap', get_template() );
 		$component         = bp_current_component();
 		$bp_nouveau        = bp_nouveau();
 		$member_type_class = '';
@@ -1444,7 +1515,7 @@ function bp_nouveau_container_classes() {
 		}
 
 		// Provide a class token to acknowledge additional extended profile fields added to default account reg screen
-		if ( 'register' === bp_current_component() && bp_is_active( 'xprofile' ) && bp_nouveau_base_account_has_xprofile()) {
+		if ( 'register' === bp_current_component() && bp_is_active( 'xprofile' ) && bp_nouveau_has_signup_xprofile_fields()) {
 			$classes[] = 'extended-default-reg';
 		}
 
@@ -1472,6 +1543,11 @@ function bp_nouveau_container_classes() {
 			} else {
 				$classes[] = 'bp-dir-hori-nav';
 			}
+		}
+
+		$global_alignment = bp_nouveau_get_temporary_setting( 'global_alignment', bp_nouveau_get_appearance_settings( 'global_alignment' ) );
+		if ( $global_alignment && 'alignnone' !== $global_alignment && current_theme_supports( 'align-wide' ) ) {
+			$classes[] = $global_alignment;
 		}
 
 		$class = array_map( 'sanitize_html_class', $classes );
@@ -1724,6 +1800,14 @@ function bp_nouveau_get_search_objects( $objects = array() ) {
 		$objects['secondary'] = bp_current_component();
 	} elseif ( 'group' === $primary ) {
 		$objects['secondary'] = bp_current_action();
+
+		if ( bp_is_group_home() && ! bp_is_group_custom_front() ) {
+			$objects['secondary'] = 'members';
+
+			if ( bp_is_active( 'activity' ) ) {
+				$objects['secondary'] = 'activity';
+			}
+		}
 	} else {
 
 		/**
@@ -1845,14 +1929,29 @@ function bp_nouveau_search_default_text( $text = '', $is_attr = true ) {
  * @since 3.0.0
  */
 function bp_nouveau_search_form() {
-	bp_get_template_part( 'common/search/search-form' );
+	$search_form_html = bp_buffer_template_part( 'common/search/search-form', null, false );
 
 	$objects = bp_nouveau_get_search_objects();
 	if ( empty( $objects['primary'] ) || empty( $objects['secondary'] ) ) {
+		echo $search_form_html;
 		return;
 	}
 
 	if ( 'dir' === $objects['primary'] ) {
+		/**
+		 * Filter here to edit the HTML output of the directory search form.
+		 *
+		 * NB: This will take in charge the following BP Core Components filters
+		 *     - bp_directory_members_search_form
+		 *     - bp_directory_blogs_search_form
+		 *     - bp_directory_groups_search_form
+		 *
+		 * @since 1.9.0
+		 *
+		 * @param string $search_form_html The HTML output for the directory search form.
+		 */
+		echo apply_filters( "bp_directory_{$objects['secondary']}_search_form", $search_form_html );
+
 		if ( 'activity' === $objects['secondary'] ) {
 			/**
 			 * Fires before the display of the activity syndication options.
@@ -1885,13 +1984,46 @@ function bp_nouveau_search_form() {
 			 */
 			do_action( 'bp_members_directory_member_sub_types' );
 		}
-	} elseif ( 'group' === $objects['primary'] && 'activity' === $objects['secondary'] ) {
-		/**
-		 * Fires inside the syndication options list, after the RSS option.
-		 *
-		 * @since 1.2.0
-		 */
-		do_action( 'bp_group_activity_syndication_options' );
+	} elseif ( 'group' === $objects['primary'] ) {
+		if ( 'members' !== $objects['secondary'] ) {
+			/**
+			 * Filter here to edit the HTML output of the displayed group search form.
+			 *
+			 * @since 3.2.0
+			 *
+			 * @param string $search_form_html The HTML output for the directory search form.
+			 */
+			echo apply_filters( "bp_group_{$objects['secondary']}_search_form", $search_form_html );
+
+		} else {
+			/**
+			 * Filters the Members component search form.
+			 *
+			 * @since 1.9.0
+			 *
+			 * @param string $search_form_html HTML markup for the member search form.
+			 */
+			echo apply_filters( 'bp_directory_members_search_form', $search_form_html );
+		}
+
+		if ( 'members' === $objects['secondary'] ) {
+			/**
+			 * Fires at the end of the group members search unordered list.
+			 *
+			 * Part of bp_groups_members_template_part().
+			 *
+			 * @since 1.5.0
+			 */
+			do_action( 'bp_members_directory_member_sub_types' );
+
+		} elseif ( 'activity' === $objects['secondary'] ) {
+			/**
+			 * Fires inside the syndication options list, after the RSS option.
+			 *
+			 * @since 1.2.0
+			 */
+			do_action( 'bp_group_activity_syndication_options' );
+		}
 	}
 }
 
@@ -1921,14 +2053,37 @@ function bp_nouveau_current_object() {
 		$component['data_filter']      = bp_current_action();
 
 		if ( 'activity' !== bp_current_action() ) {
-			$component['data_filter'] = 'group_' . bp_current_action();
+			/**
+			 * If the Group's front page is not used, Activities are displayed on Group's home page.
+			 * To make sure filters are behaving the right way, we need to override the component object
+			 * and data filter to `activity`.
+			 */
+			if ( bp_is_group_activity() ) {
+				$activity_id              = buddypress()->activity->id;
+				$component['object']      = $activity_id;
+				$component['data_filter'] = $activity_id;
+			} else {
+				$component['data_filter'] = 'group_' . bp_current_action();
+			}
 		}
 
 	} else {
+		$component_id = bp_current_component();
+		if ( ! bp_is_directory() ) {
+			$component_id = bp_core_get_active_components( array( 'slug' => $component_id ) );
+			$component_id = reset( $component_id );
+		}
+
+		$data_filter  = $component_id;
+
+		if ( 'friends' === $data_filter && bp_is_user_friend_requests() ) {
+			$data_filter = 'friend_requests';
+		}
+
 		$component['members_select']   = 'members-order-select';
 		$component['members_order_by'] = 'members-order-by';
-		$component['object']           = bp_current_component();
-		$component['data_filter']      = bp_current_component();
+		$component['object']           = $component_id;
+		$component['data_filter']      = $data_filter;
 	}
 
 	return $component;
@@ -2084,7 +2239,7 @@ function bp_nouveau_filter_options() {
 	function bp_nouveau_get_filter_options() {
 		$output = '';
 
-		if ( 'notifications' === bp_current_component() ) {
+		if ( bp_nouveau_get_component_slug( 'notifications' ) === bp_current_component() ) {
 			$output = bp_nouveau_get_notifications_filters();
 
 		} else {
@@ -2241,147 +2396,172 @@ function bp_nouveau_signup_form( $section = 'account_details' ) {
 	}
 
 	foreach ( $fields as $name => $attributes ) {
-		list( $label, $required, $value, $attribute_type, $type, $class ) = array_values( $attributes );
-
-		// Text fields are using strings, radios are using their inputs
-		$label_output = '<label for="%1$s">%2$s</label>';
-		$id           = $name;
-		$classes      = '';
-
-		if ( $required ) {
-			/* translators: Do not translate placeholders. 2 = form field name, 3 = "(required)". */
-			$label_output = __( '<label for="%1$s">%2$s %3$s</label>', 'buddypress' );
-		}
-
-		// Output the label for regular fields
-		if ( 'radio' !== $type ) {
-			if ( $required ) {
-				printf( $label_output, esc_attr( $name ), esc_html( $label ), __( '(required)', 'buddypress' ) );
-			} else {
-				printf( $label_output, esc_attr( $name ), esc_html( $label ) );
-			}
-
-			if ( ! empty( $value ) && is_callable( $value ) ) {
-				$value = call_user_func( $value );
-			}
-
-		// Handle the specific case of Site's privacy differently
-		} elseif ( 'signup_blog_privacy_private' !== $name ) {
+		if ( 'signup_password' === $name ) {
 			?>
-				<span class="label">
-					<?php esc_html_e( 'I would like my site to appear in search engines, and in public listings around this network.', 'buddypress' ); ?>
-				</span>
+			<label for="pass1"><?php esc_html_e( 'Choose a Password (required)', 'buddypress' ); ?></label>
+			<div class="user-pass1-wrap">
+				<div class="wp-pwd">
+					<div class="password-input-wrapper">
+						<input type="password" data-reveal="1" name="signup_password" id="pass1" class="password-entry" size="24" value="" <?php bp_form_field_attributes( 'password', array( 'data-pw' => wp_generate_password( 12 ), 'aria-describedby' => 'pass-strength-result' ) ); ?> />
+						<button type="button" class="button wp-hide-pw">
+							<span class="dashicons dashicons-hidden" aria-hidden="true"></span>
+						</button>
+					</div>
+					<div id="pass-strength-result" aria-live="polite"><?php esc_html_e( 'Strength indicator', 'buddypress' ); ?></div>
+				</div>
+				<div class="pw-weak">
+					<label>
+						<input type="checkbox" name="pw_weak" class="pw-checkbox" />
+						<?php esc_html_e( 'Confirm use of weak password', 'buddypress' ); ?>
+					</label>
+				</div>
+			</div>
 			<?php
-		}
+		} elseif ( 'signup_password_confirm' === $name ) {
+			?>
+			<p class="user-pass2-wrap">
+				<label for="pass2"><?php esc_html_e( 'Confirm new password', 'buddypress' ); ?></label><br />
+				<input type="password" name="signup_password_confirm" id="pass2" class="password-entry-confirm" size="24" value="" <?php bp_form_field_attributes( 'password' ); ?> />
+			</p>
 
-		// Set the additional attributes
-		if ( $attribute_type ) {
-			$existing_attributes = array();
+			<p class="description indicator-hint"><?php echo wp_get_password_hint(); ?></p>
+			<?php
+		} else {
+			list( $label, $required, $value, $attribute_type, $type, $class ) = array_values( $attributes );
 
-			if ( ! empty( $required ) ) {
-				$existing_attributes = array( 'aria-required' => 'true' );
+			// Text fields are using strings, radios are using their inputs
+			$label_output = '<label for="%1$s">%2$s</label>';
+			$id           = $name;
+			$classes      = '';
+
+			if ( $required ) {
+				/* translators: Do not translate placeholders. 2 = form field name, 3 = "(required)". */
+				$label_output = __( '<label for="%1$s">%2$s %3$s</label>', 'buddypress' );
+			}
+
+			// Output the label for regular fields
+			if ( 'radio' !== $type ) {
+				if ( $required ) {
+					printf( $label_output, esc_attr( $name ), esc_html( $label ), __( '(required)', 'buddypress' ) );
+				} else {
+					printf( $label_output, esc_attr( $name ), esc_html( $label ) );
+				}
+
+				if ( ! empty( $value ) && is_callable( $value ) ) {
+					$value = call_user_func( $value );
+				}
+
+			// Handle the specific case of Site's privacy differently
+			} elseif ( 'signup_blog_privacy_private' !== $name ) {
+				?>
+					<span class="label">
+						<?php esc_html_e( 'I would like my site to appear in search engines, and in public listings around this network.', 'buddypress' ); ?>
+					</span>
+				<?php
+			}
+
+			// Set the additional attributes
+			if ( $attribute_type ) {
+				$existing_attributes = array();
+
+				if ( ! empty( $required ) ) {
+					$existing_attributes = array( 'aria-required' => 'true' );
+
+					/**
+					 * The blog section is hidden, so let's avoid a browser warning
+					 * and deal with the Blog section in Javascript.
+					 */
+					if ( $section !== 'blog_details' ) {
+						$existing_attributes['required'] = 'required';
+					}
+				}
+
+				$attribute_type = ' ' . bp_get_form_field_attributes( $attribute_type, $existing_attributes );
+			}
+
+			// Specific case for Site's privacy
+			if ( 'signup_blog_privacy_public' === $name || 'signup_blog_privacy_private' === $name ) {
+				$name      = 'signup_blog_privacy';
+				$submitted = bp_get_signup_blog_privacy_value();
+
+				if ( ! $submitted ) {
+					$submitted = 'public';
+				}
+
+				$attribute_type = ' ' . checked( $value, $submitted, false );
+			}
+
+			// Do not run function to display errors for the private radio.
+			if ( 'private' !== $value ) {
 
 				/**
-				 * The blog section is hidden, so let's avoid a browser warning
-				 * and deal with the Blog section in Javascript.
+				 * Fetch & display any BP member registration field errors.
+				 *
+				 * Passes BP signup errors to Nouveau's template function to
+				 * render suitable markup for error string.
 				 */
-				if ( $section !== 'blog_details' ) {
-					$existing_attributes['required'] = 'required';
+				if ( isset( buddypress()->signup->errors[ $name ] ) ) {
+					nouveau_error_template( buddypress()->signup->errors[ $name ] );
+					$invalid = 'invalid';
 				}
 			}
 
-			$attribute_type = ' ' . bp_get_form_field_attributes( $attribute_type, $existing_attributes );
-		}
-
-		// Specific case for Site's privacy
-		if ( 'signup_blog_privacy_public' === $name || 'signup_blog_privacy_private' === $name ) {
-			$name      = 'signup_blog_privacy';
-			$submitted = bp_get_signup_blog_privacy_value();
-
-			if ( ! $submitted ) {
-				$submitted = 'public';
+			if ( isset( $invalid ) && isset( buddypress()->signup->errors[ $name ] ) ) {
+				if ( ! empty( $class ) ) {
+					$class = $class . ' ' . $invalid;
+				} else {
+					$class = $invalid;
+				}
 			}
 
-			$attribute_type = ' ' . checked( $value, $submitted, false );
-		}
-
-		// Do not run function to display errors for the private radio.
-		if ( 'private' !== $value ) {
-
-			/**
-			 * Fetch & display any BP member registration field errors.
-			 *
-			 * Passes BP signup errors to Nouveau's template function to
-			 * render suitable markup for error string.
-			 */
-			if ( isset( buddypress()->signup->errors[ $name ] ) ) {
-				nouveau_error_template( buddypress()->signup->errors[ $name ] );
-				$invalid = 'invalid';
+			if ( $class ) {
+				$class = sprintf(
+					' class="%s"',
+					esc_attr( join( ' ', array_map( 'sanitize_html_class', explode( ' ', $class ) ) ) )
+				);
 			}
-		}
 
-		if ( isset( $invalid ) && isset( buddypress()->signup->errors[ $name ] ) ) {
-			if ( ! empty( $class ) ) {
-				$class = $class . ' ' . $invalid;
-			} else {
-				$class = $invalid;
-			}
-		}
-
-		if ( $class ) {
-			$class = sprintf(
-				' class="%s"',
-				esc_attr( join( ' ', array_map( 'sanitize_html_class', explode( ' ', $class ) ) ) )
+			// Set the input.
+			$field_output = sprintf(
+				'<input type="%1$s" name="%2$s" id="%3$s" %4$s value="%5$s" %6$s />',
+				esc_attr( $type ),
+				esc_attr( $name ),
+				esc_attr( $id ),
+				$class,  // Constructed safely above.
+				esc_attr( $value ),
+				$attribute_type // Constructed safely above.
 			);
-		}
 
-		// Set the input.
-		$field_output = sprintf(
-			'<input type="%1$s" name="%2$s" id="%3$s" %4$s value="%5$s" %6$s />',
-			esc_attr( $type ),
-			esc_attr( $name ),
-			esc_attr( $id ),
-			$class,  // Constructed safely above.
-			esc_attr( $value ),
-			$attribute_type // Constructed safely above.
-		);
+			// Not a radio, let's output the field
+			if ( 'radio' !== $type ) {
+				if ( 'signup_blog_url' !== $name ) {
+					print( $field_output );  // Constructed safely above.
 
-		// Not a radio, let's output the field
-		if ( 'radio' !== $type ) {
-			if ( 'signup_blog_url' !== $name ) {
-				print( $field_output );  // Constructed safely above.
+				// If it's the signup blog url, it's specific to Multisite config.
+				} elseif ( is_subdomain_install() ) {
+					// Constructed safely above.
+					printf(
+						'%1$s %2$s . %3$s',
+						is_ssl() ? 'https://' : 'http://',
+						$field_output,
+						bp_signup_get_subdomain_base()
+					);
 
-			// If it's the signup blog url, it's specific to Multisite config.
-			} elseif ( is_subdomain_install() ) {
-				// Constructed safely above.
-				printf(
-					'%1$s %2$s . %3$s',
-					is_ssl() ? 'https://' : 'http://',
-					$field_output,
-					bp_signup_get_subdomain_base()
-				);
+				// Subfolders!
+				} else {
+					printf(
+						'%1$s %2$s',
+						home_url( '/' ),
+						$field_output  // Constructed safely above.
+					);
+				}
 
-			// Subfolders!
+			// It's a radio, let's output the field inside the label
 			} else {
-				printf(
-					'%1$s %2$s',
-					home_url( '/' ),
-					$field_output  // Constructed safely above.
-				);
+				// $label_output and $field_output are constructed safely above.
+				printf( $label_output, esc_attr( $name ), $field_output . ' ' . esc_html( $label ) );
 			}
-
-		// It's a radio, let's output the field inside the label
-		} else {
-			// $label_output and $field_output are constructed safely above.
-			printf( $label_output, esc_attr( $name ), $field_output . ' ' . esc_html( $label ) );
 		}
-
-		// Password strength is restricted to the signup_password field
-		if ( 'signup_password' === $name ) :
-		?>
-			<div id="pass-strength-result"></div>
-		<?php
-		endif;
 	}
 
 	/**
@@ -2395,13 +2575,42 @@ function bp_nouveau_signup_form( $section = 'account_details' ) {
 }
 
 /**
+ * Outputs the Privacy Policy acceptance area on the registration page.
+ *
+ * @since 4.0.0
+ */
+function bp_nouveau_signup_privacy_policy_acceptance_section() {
+	$error = null;
+	if ( isset( buddypress()->signup->errors['signup_privacy_policy'] ) ) {
+		$error = buddypress()->signup->errors['signup_privacy_policy'];
+	}
+
+	?>
+
+	<div class="privacy-policy-accept">
+		<?php if ( $error ) : ?>
+			<?php nouveau_error_template( $error ); ?>
+		<?php endif; ?>
+
+		<label for="signup-privacy-policy-accept">
+			<input type="hidden" name="signup-privacy-policy-check" value="1" />
+
+			<?php /* translators: link to Privacy Policy */ ?>
+			<input type="checkbox" name="signup-privacy-policy-accept" id="signup-privacy-policy-accept" required /> <?php printf( esc_html__( 'I have read and agree to this site\'s %s.', 'buddypress' ), sprintf( '<a href="%s">%s</a>', esc_url( get_privacy_policy_url() ), esc_html__( 'Privacy Policy', 'buddypress' ) ) ); ?>
+		</label>
+	</div>
+
+	<?php
+}
+
+/**
  * Output a submit button and the nonce for the requested action.
  *
  * @since 3.0.0
  *
  * @param string $action The action to get the submit button for. Required.
  */
-function bp_nouveau_submit_button( $action ) {
+function bp_nouveau_submit_button( $action, $object_id = 0 ) {
 	$submit_data = bp_nouveau_get_submit_button( $action );
 	if ( empty( $submit_data['attributes'] ) || empty( $submit_data['nonce'] ) ) {
 		return;
@@ -2432,10 +2641,19 @@ function bp_nouveau_submit_button( $action ) {
 		printf( '<div class="submit">%s</div>', $submit_input );
 	}
 
+	$nonce = $submit_data['nonce'];
+	if ( isset( $submit_data['nonce_placeholder_value'] ) ) {
+		$nonce = sprintf( $nonce, $submit_data['nonce_placeholder_value'] );
+	}
+
 	if ( empty( $submit_data['nonce_key'] ) ) {
-		wp_nonce_field( $submit_data['nonce'] );
+		wp_nonce_field( $nonce );
 	} else {
-		wp_nonce_field( $submit_data['nonce'], $submit_data['nonce_key'] );
+		if ( $object_id ) {
+			$submit_data['nonce_key'] .= '_' . (int) $object_id;
+		}
+
+		wp_nonce_field( $nonce, $submit_data['nonce_key'] );
 	}
 
 	if ( ! empty( $submit_data['after'] ) ) {
@@ -2476,4 +2694,68 @@ function nouveau_error_template( $message = '', $type = '' ) {
 	</div>
 
 	<?php
+}
+
+/**
+ * Checks whether the Activity RSS links should be output.
+ *
+ * @since 8.0.0
+ *
+ * @return bool True to output the Activity RSS link. False otherwise.
+ */
+function bp_nouveau_is_feed_enable() {
+	$retval     = false;
+	$bp_nouveau = bp_nouveau();
+
+	if ( bp_is_active( 'activity' ) && 'activity' === bp_current_component() ) {
+		if ( isset( $bp_nouveau->activity->current_rss_feed ) ) {
+			$bp_nouveau->activity->current_rss_feed = array(
+				'link'               => '',
+				'tooltip'            => _x( 'RSS Feed', 'BP RSS Tooltip', 'buddypress' ),
+				'screen_reader_text' => _x( 'RSS', 'BP RSS screen reader text', 'buddypress' ),
+			);
+
+			if ( ! bp_is_user() && ! bp_is_group() ) {
+				$retval = bp_activity_is_feed_enable( 'sitewide' );
+
+				if ( $retval ) {
+					$bp_nouveau->activity->current_rss_feed['link'] = bp_get_sitewide_activity_feed_link();
+				}
+			} elseif ( bp_is_user_activity() ) {
+				$retval = bp_activity_is_feed_enable( 'personal' );
+
+				if ( $retval ) {
+					$bp_nouveau->activity->current_rss_feed['link'] = trailingslashit( bp_displayed_user_domain() . bp_nouveau_get_component_slug( 'activity' ) . '/feed' );
+				}
+
+				if ( bp_is_active( 'friends' ) && bp_is_current_action( bp_nouveau_get_component_slug( 'friends' ) ) ) {
+					$retval = bp_activity_is_feed_enable( 'friends' );
+
+					if ( $retval ) {
+						$bp_nouveau->activity->current_rss_feed['link'] = trailingslashit( bp_displayed_user_domain() . bp_nouveau_get_component_slug( 'activity' ) . '/' . bp_nouveau_get_component_slug( 'friends' ) . '/feed' );
+					}
+				} elseif ( bp_is_active( 'groups' ) && bp_is_current_action( bp_nouveau_get_component_slug( 'groups' ) ) ) {
+					$retval = bp_activity_is_feed_enable( 'mygroups' );
+
+					if ( $retval ) {
+						$bp_nouveau->activity->current_rss_feed['link'] = trailingslashit( bp_displayed_user_domain() . bp_nouveau_get_component_slug( 'activity' ) . '/' . bp_nouveau_get_component_slug( 'groups' ) . '/feed' );
+					}
+				} elseif ( bp_activity_do_mentions() && bp_is_current_action( 'mentions' ) ) {
+					$retval = bp_activity_is_feed_enable( 'mentions' );
+
+					if ( $retval ) {
+						$bp_nouveau->activity->current_rss_feed['link'] = trailingslashit( bp_displayed_user_domain() . bp_nouveau_get_component_slug( 'activity' ) . '/mentions/feed' );
+					}
+				} elseif ( bp_activity_can_favorite() && bp_is_current_action( 'favorites' ) ) {
+					$retval = bp_activity_is_feed_enable( 'mentions' );
+
+					if ( $retval ) {
+						$bp_nouveau->activity->current_rss_feed['link'] = trailingslashit( bp_displayed_user_domain() . bp_nouveau_get_component_slug( 'activity' ) . '/favorites/feed' );
+					}
+				}
+			}
+		}
+	}
+
+	return $retval;
 }

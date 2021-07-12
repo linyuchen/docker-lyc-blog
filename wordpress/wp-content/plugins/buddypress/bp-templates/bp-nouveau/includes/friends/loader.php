@@ -3,7 +3,7 @@
  * BP Nouveau Friends
  *
  * @since 3.0.0
- * @version 3.0.0
+ * @version 6.1.0
  */
 
 // Exit if accessed directly.
@@ -50,7 +50,7 @@ class BP_Nouveau_Friends {
 		} else {
 			add_action( 'admin_init', function() {
 				if ( defined( 'DOING_AJAX' ) && true === DOING_AJAX && 0 === strpos( $_REQUEST['action'], 'friends_' ) ) {
-					require $this->dir . 'ajax.php';
+					require bp_nouveau()->friends->dir . 'ajax.php';
 				}
 			} );
 		}
@@ -87,6 +87,10 @@ class BP_Nouveau_Friends {
 		foreach ( $buttons as $button ) {
 			add_filter( 'bp_button_' . $button, 'bp_nouveau_ajax_button', 10, 5 );
 		}
+
+		// The number formatting is done into the `bp_nouveau_nav_count()` template tag.
+		remove_filter( 'friends_get_total_friend_count', 'bp_core_number_format' );
+		remove_filter( 'bp_get_total_friend_count',      'bp_core_number_format' );
 	}
 
 	/**
