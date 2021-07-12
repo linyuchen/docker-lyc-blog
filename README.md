@@ -4,7 +4,7 @@ docker-compose up -d
 
 # 配置nginx转发到docker
 
-复制`nginx`文件夹中的所有文件到`/etc/nginx/sites-enabled/`
+复制`nginx`文件夹中的所有文件到`/etc/nginx/`
 
 重新加载nginx配置: `nginx -s reload`
 
